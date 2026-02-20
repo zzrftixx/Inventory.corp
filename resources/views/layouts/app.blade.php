@@ -39,7 +39,7 @@
         <div class="flex-1 overflow-y-auto py-4">
             <nav class="px-3 space-y-1">
                 <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Main Menu</p>
-                <a href="/" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ request()->is('/') ? 'bg-primary text-white hover:bg-primary' : '' }}">
+                <a href="{{ route('dashboard') }}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ request()->routeIs('dashboard') ? 'bg-primary text-white hover:bg-primary' : '' }}">
                     <i class="ph ph-squares-four text-lg mr-3"></i> Dashboard
                 </a>
 
@@ -66,7 +66,7 @@
                 </a>
                 
                 <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mt-6 mb-2">Audit Trails</p>
-                <a href="#" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-slate-400 opacity-70">
+                <a href="{{ route('stock-movements.index') }}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ request()->is('stock-movements*') ? 'bg-slate-800 text-white' : '' }}">
                     <i class="ph ph-clock-counter-clockwise text-lg mr-3"></i> Pergerakan Stok
                 </a>
             </nav>
