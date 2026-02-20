@@ -58,7 +58,7 @@
                 </a>
 
                 <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mt-6 mb-2">Transaksi</p>
-                <a href="#" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-slate-400 opacity-70">
+                <a href="{{ route('sales-orders.index') }}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ request()->is('sales-orders*') ? 'bg-slate-800 text-white' : '' }}">
                     <i class="ph ph-shopping-cart text-lg mr-3"></i> Sales Order (Out)
                 </a>
                 <a href="#" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-slate-400 opacity-70">

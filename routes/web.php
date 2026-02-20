@@ -14,3 +14,8 @@ Route::resource('categories', CategoryController::class);
 Route::resource('suppliers', SupplierController::class);
 Route::resource('customers', CustomerController::class);
 Route::resource('items', ItemController::class);
+
+use App\Http\Controllers\SalesOrderController;
+Route::resource('sales-orders', SalesOrderController::class);
+Route::get('sales-orders/{sales_order}/surat-jalan', [SalesOrderController::class, 'suratJalan'])->name('sales-orders.surat-jalan');
+Route::get('sales-orders/{sales_order}/faktur', [SalesOrderController::class, 'faktur'])->name('sales-orders.faktur');
