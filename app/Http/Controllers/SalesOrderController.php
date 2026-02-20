@@ -53,8 +53,8 @@ class SalesOrderController extends Controller
                 'no_faktur' => $noFaktur,
                 'tanggal_transaksi' => $request->tanggal_transaksi,
                 'customer_id' => $request->customer_id,
-                // Hardcode user_id for now since we don't have auth implemented yet
-                'user_id' => 1, 
+                // Dynamically fetch first user if not authenticated
+                'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1), 
                 'total_invoice' => 0, // Will be calculated
                 'status' => 'Selesai' // Automatically assumed 'Selesai/Dikirim' for simplicity unless explicitly drafting
             ]);
@@ -97,7 +97,7 @@ class SalesOrderController extends Controller
                     'qty' => $qty,
                     'sisa_stok' => $item->stok_saat_ini,
                     'referensi' => 'SO: ' . $noFaktur,
-                    'user_id' => 1,
+                    'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
                     'timestamp' => now()
                 ]);
             }
@@ -161,7 +161,7 @@ class SalesOrderController extends Controller
                         'qty' => $detail->qty,
                         'sisa_stok' => $item->stok_saat_ini,
                         'referensi' => 'Void SO: ' . $salesOrder->no_faktur,
-                        'user_id' => 1,
+                        'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
                         'timestamp' => now()
                     ]);
                 }

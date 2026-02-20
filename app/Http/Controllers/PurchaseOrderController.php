@@ -58,7 +58,7 @@ class PurchaseOrderController extends Controller
                 'no_po' => $noPo,
                 'tanggal_po' => $request->tanggal_po,
                 'supplier_id' => $request->supplier_id,
-                'user_id' => 1, // Default user for now
+                'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1), // Default user for now
                 'status' => 'Ordered' 
             ]);
 
@@ -108,7 +108,7 @@ class PurchaseOrderController extends Controller
                         'qty' => $detail->qty_butuh,
                         'sisa_stok' => $item->stok_saat_ini,
                         'referensi' => 'Terima PO: ' . $purchaseOrder->no_po,
-                        'user_id' => 1,
+                        'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
                         'timestamp' => now()
                     ]);
                 }
