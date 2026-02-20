@@ -61,7 +61,7 @@
                 <a href="{{ route('sales-orders.index') }}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ request()->is('sales-orders*') ? 'bg-slate-800 text-white' : '' }}">
                     <i class="ph ph-shopping-cart text-lg mr-3"></i> Sales Order (Out)
                 </a>
-                <a href="#" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors text-slate-400 opacity-70">
+                <a href="{{ route('purchase-orders.index') }}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ request()->is('purchase-orders*') ? 'bg-slate-800 text-white' : '' }}">
                     <i class="ph ph-receipt text-lg mr-3"></i> Purchase Order (In)
                 </a>
                 
