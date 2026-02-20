@@ -1,59 +1,226 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel Inventory & Sales System - CV Ma Karya Artha Graha
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistem informasi berbasis web yang dibangun dengan Laravel untuk memenuhi kebutuhan administrasi, pelacakan stok, dan transaksi (Inbound & Outbound) pada perusahaan kontraktor **CV Ma Karya Artha Graha**. Sistem ini juga mengakomodasi pelanggan/klien bisnis seperti **Alupbesk**.
 
-## About Laravel
+## 🌟 Fitur Utama
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+1. **Master Data Management**: Modul CRUD lengkap untuk mengelola Barang & Limit Stok, Kategori, Pelanggan/Klien, dan Supplier.
+2. **Dashboard Peringatan Dini**: Notifikasi (Red-Zone) untuk barang yang stoknya berada di bawah batas minimum, memicu pembuatan *Purchase Order (PO)* secara otomatis.
+3. **Smart Transaction Panel (Penjualan)**:
+   - Pencetakan **Surat Jalan** (kertas informasi barang & kuantitas untuk supir/pengiriman).
+   - Pencetakan **Faktur Penjualan / Nota Manufaktur** (kertas rincian harga, diskon, dan subtotal pembayaran).
+4. **Stock Ledger & Tracing (Audit Trail)**: Riwayat pergerakan stok rinci (IN/OUT) untuk melacak setiap rotasi barang secara akurat (PO, SO, Retur, Penyesuaian Barang Rusak/Hilang).
+5. **Autopilot Restock (Inbound)**: Modul untuk mengonfirmasi penerimaan barang dari *Supplier* berdasarkan PO yang dicetak otomatis oleh sistem.
+6. **Retur Barang**: Fasilitas untuk memproses retur (pengembalian barang) yang terintegrasi dengan penambahan/pengurangan stok otomatis.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 📐 Arsitektur & Alur Bisnis (Flowcharts)
 
-## Learning Laravel
+Sistem dibagi menjadi 2 proses utama: **Outbound (Penjualan)** dan **Inbound (Pembelian/Restock)**.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### A. Modul Outbound (Penjualan / Surat Jalan & Faktur)
+Proses penanganan pesanan, pengecekan ketersediaan stok, pengeluaran dari gudang, dan penagihan.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```mermaid
+graph TD
+    A[Terima Pesanan dari Customer <br/> cth: Alupbesk] --> B[Admin Input Sales Order / SO]
+    B --> C{Sistem Cek Stok Gudang}
+    C -- Stok Cukup --> D[Cetak Surat Jalan <br/> Hanya menampilkan Item & Qty, Tanpa Harga]
+    C -- Stok Tidak Cukup --> E[Tahan Pesanan & Trigger Proses Inbound]
+    D --> F[Berikan Surat Jalan ke Supir/Gudang <br/> Pengiriman Barang ke Customer]
+    F --> G[Cetak Faktur Penjualan <br/> Tampil Harga, Diskon, Subtotal]
+    G --> H[Stok di Sistem Berkurang Otomatis]
+    H --> DB[(Database Stok Utama)]
+```
 
-## Laravel Sponsors
+### B. Modul Inbound (Pembelian / Autopilot Restock)
+Proses pengawasan *Minimum Stock Level* agar gudang tidak kehabisan material.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```mermaid
+graph TD
+    DB[(Database Stok Utama)] --> I[Sistem Cek Stok Terus Menerus]
+    I --> J{Apakah Stok Gudang < Limit Minimum?}
+    J -- Ya --> K[Sistem Menerbitkan Draf PO otomatis <br/> Daftar Kebutuhan Barang & Qty]
+    J -- Tidak --> L[Aman / Standby]
+    K --> M[Admin Konfirmasi Draf & Kirim Order ke Pabrik/Supplier]
+    M --> N[Barang Fisik Tiba & Admin Input Penerimaan Barang]
+    N --> O[Stok di Sistem Bertambah Otomatis]
+    O --> DB
+```
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## 🗄️ Struktur Database (ERD)
 
-## Contributing
+Database menggunakan rancangan enterprise (Bulletproof Design) yang mencegah redundansi, memudahkan pelacakan kerugian/keuntungan, dan menyediakan jejak audit (audit trails) via `STOCK_MOVEMENTS`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```mermaid
+erDiagram
+    USERS {
+        int id PK
+        string nama
+        string role "Admin / Gudang / Kasir"
+    }
 
-## Code of Conduct
+    CATEGORIES {
+        int id PK
+        string nama_kategori "Cth: Aksesoris, Kaca, Aluminium"
+    }
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+    SUPPLIERS {
+        int id PK
+        string nama_supplier "Pabrik / Distributor"
+        string kontak
+    }
 
-## Security Vulnerabilities
+    CUSTOMERS {
+        int id PK
+        string nama "Cth: Alupbesk, Umum"
+        string alamat
+        string no_telp
+    }
+    
+    ITEMS {
+        int id PK
+        string kode_barang "Kode Pabrik"
+        string nama_barang "Cth: HANDLE STAINLESS"
+        int category_id FK
+        string satuan "Cth: PSG, SET, PCS"
+        decimal harga_jual_default
+        int stok_saat_ini "Auto Update via Trigger"
+        int batas_stok_minimum
+    }
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+    SALES_ORDERS {
+        int id PK
+        string no_faktur "INV-2026-001"
+        date tanggal_transaksi
+        int customer_id FK
+        int user_id FK "Pencatat SO"
+        decimal total_invoice
+        string status "Draft / Dikirim / Selesai / Retur"
+    }
 
-## License
+    SALES_ORDER_DETAILS {
+        int id PK
+        int sales_order_id FK
+        int item_id FK
+        int qty
+        decimal harga_satuan_saat_transaksi
+        decimal diskon
+        decimal subtotal_netto
+    }
+    
+    PURCHASE_ORDERS {
+        int id PK
+        string no_po
+        date tanggal_po
+        int supplier_id FK
+        int user_id FK "Pembuat PO"
+        string status "Draft / Ordered / Received"
+    }
+    
+    PURCHASE_ORDER_DETAILS {
+        int id PK
+        int purchase_order_id FK
+        int item_id FK
+        int qty_butuh
+    }
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+    STOCK_MOVEMENTS {
+        int id PK
+        int item_id FK
+        string tipe_pergerakan "IN (PO/Retur) / OUT (SO/Rusak)"
+        int qty
+        int sisa_stok "Snapshot stok saat itu"
+        string referensi "No PO / No SO / Catatan"
+        int user_id FK "Yang Approve"
+        datetime timestamp
+    }
+
+    USERS ||--o{ SALES_ORDERS : "mencatat"
+    USERS ||--o{ PURCHASE_ORDERS : "membuat"
+    USERS ||--o{ STOCK_MOVEMENTS : "menyetujui"
+    
+    CATEGORIES ||--o{ ITEMS : "mengkelompokkan"
+    SUPPLIERS ||--o{ PURCHASE_ORDERS : "menerima"
+    CUSTOMERS ||--o{ SALES_ORDERS : "melakukan"
+    
+    SALES_ORDERS ||--|{ SALES_ORDER_DETAILS : "memiliki"
+    ITEMS ||--o{ SALES_ORDER_DETAILS : "tercatat di SO"
+    
+    PURCHASE_ORDERS ||--|{ PURCHASE_ORDER_DETAILS : "memiliki PO"
+    ITEMS ||--o{ PURCHASE_ORDER_DETAILS : "kebutuhan"
+    
+    ITEMS ||--o{ STOCK_MOVEMENTS : "memiliki history"
+```
+
+---
+
+## 🚀 Panduan Instalasi & Penggunaan
+
+### Kebutuhan Sistem
+* PHP >= 8.2
+* Composer
+* MySQL Server (Misal: XAMPP, Laragon, MAMP)
+
+### Langkah Instalasi
+
+1. **Clone Repository (atau download ZIP):**
+   ```bash
+   git clone https://github.com/zzrftixx/Inventory.corp.git
+   cd Inventory.corp
+   ```
+
+2. **Install Dependensi Laravel:**
+   ```bash
+   composer install
+   ```
+
+3. **Konfigurasi Environment:**
+   Salin file `.env.example` menjadi `.env`.
+   ```bash
+   cp .env.example .env
+   ```
+   Atur kredensial Database Anda di file `.env` yang baru saja dibuat:
+   ```env
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=masterinventorys
+   DB_USERNAME=root
+   DB_PASSWORD=
+   ```
+
+4. **Generate Application Key:**
+   ```bash
+   php artisan key:generate
+   ```
+
+5. **Buat Database SQL:**
+   Buka *phpMyAdmin* (atau aplikasi GUI database yang Anda gunakan) dan buat Schema/Database baru bernama `masterinventorys`.
+
+6. **Jalankan Migrations Database:**
+   Perintah ini akan secara otomatis membuat struktur tabel ke database `masterinventorys`.
+   ```bash
+   php artisan migrate:fresh
+   ```
+
+7. **Jalankan Development Server:**
+   ```bash
+   php artisan serve
+   ```
+   Akses aplikasi di Browser: `http://127.0.0.1:8000`
+
+### Penggunaan (Cara Mulai Mencoba)
+Setelah instalasi selesai, ikuti urutan ini untuk menggunakan sistem:
+1. Akses menu **Kategori Barang** (`/categories`). Daftarkan kategori, misal: *Kaca*, *Aksesoris*, *Aluminium*.
+2. Akses menu **Supplier** (`/suppliers`). Daftarkan pabrik tempat perusahan memesan material.
+3. Akses menu **Customer / Klien** (`/customers`). Daftarkan *Alupbesk* atau pelanggan lainnya.
+4. Akses menu **Barang & Stok** (`/items`). Daftarkan master data profil barang, harganya, dan tentukan limit minimum *restock*-nya.
+5. Selanjutnya, gunakan modul Transaksi (Inbound/Outbound) yang saling teringrasi di panel.
+
+---
+
+> Dibuat khusus untuk **CV Ma Karya Artha Graha** dengan desain UI/UX canggih (_Tailwind CSS_) dan perancangan database (_bulletproof architecture_) by Engineer Support.
