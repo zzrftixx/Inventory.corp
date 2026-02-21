@@ -44,6 +44,7 @@
                 </a>
 
                 <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mt-6 mb-2">Master Data</p>
+                @hasanyrole('Super Admin|Admin')
                 <a href="{{ route('items.index') }}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ request()->is('items*') ? 'bg-slate-800 text-white' : '' }}">
                     <i class="ph ph-box-arrow-down text-lg mr-3"></i> Barang & Stok
                 </a>
@@ -53,33 +54,42 @@
                 <a href="{{ route('suppliers.index') }}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ request()->is('suppliers*') ? 'bg-slate-800 text-white' : '' }}">
                     <i class="ph ph-truck text-lg mr-3"></i> Supplier
                 </a>
+                @endhasanyrole
+                @hasanyrole('Super Admin|Admin|Kasir')
                 <a href="{{ route('customers.index') }}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ request()->is('customers*') ? 'bg-slate-800 text-white' : '' }}">
                     <i class="ph ph-users text-lg mr-3"></i> Customer / Klien
                 </a>
+                @endhasanyrole
 
                 <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mt-6 mb-2">Transaksi</p>
+                @hasanyrole('Super Admin|Admin|Kasir')
                 <a href="{{ route('sales-orders.index') }}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ request()->is('sales-orders*') ? 'bg-slate-800 text-white' : '' }}">
                     <i class="ph ph-shopping-cart text-lg mr-3"></i> Sales Order (Out)
                 </a>
+                @endhasanyrole
+                @hasanyrole('Super Admin|Admin|Gudang')
                 <a href="{{ route('purchase-orders.index') }}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ request()->is('purchase-orders*') ? 'bg-slate-800 text-white' : '' }}">
                     <i class="ph ph-receipt text-lg mr-3"></i> Purchase Order (In)
                 </a>
+                @endhasanyrole
                 
+                @hasanyrole('Super Admin|Admin|Gudang')
                 <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mt-6 mb-2">Audit Trails</p>
                 <a href="{{ route('stock-movements.index') }}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors {{ request()->is('stock-movements*') ? 'bg-slate-800 text-white' : '' }}">
                     <i class="ph ph-clock-counter-clockwise text-lg mr-3"></i> Pergerakan Stok
                 </a>
+                @endhasanyrole
             </nav>
         </div>
         
         <div class="p-4 border-t border-slate-800">
             <div class="flex items-center">
-                <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-white">
-                    AD
+                <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-white uppercase">
+                    {{ substr(Auth::user()->name ?? 'U', 0, 2) }}
                 </div>
                 <div class="ml-3">
-                    <p class="text-sm font-medium text-white">Administrator</p>
-                    <p class="text-xs text-slate-500">CV Ma Karya</p>
+                    <p class="text-sm font-medium text-white">{{ Auth::user()->name ?? 'Guest' }}</p>
+                    <p class="text-xs text-slate-500">{{ optional(Auth::user())->roles ? Auth::user()->roles->pluck('name')->implode(', ') : 'CV Ma Karya' }}</p>
                 </div>
             </div>
         </div>
@@ -96,6 +106,12 @@
                 <button class="text-slate-500 hover:text-primary transition-colors">
                     <i class="ph ph-bell text-xl"></i>
                 </button>
+                <form method="POST" action="{{ route('logout') }}" class="m-0 p-0">
+                    @csrf
+                    <button type="submit" class="text-slate-500 hover:text-red-500 transition-colors flex items-center text-sm font-medium">
+                        <i class="ph ph-sign-out text-xl mr-1"></i> Logout
+                    </button>
+                </form>
             </div>
         </header>
 
