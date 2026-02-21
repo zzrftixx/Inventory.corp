@@ -1,226 +1,74 @@
-# Laravel Inventory & Sales System - CV Ma Karya Artha Graha
+# Inventory.corp (V2: Auth & Financial Engine)
 
-Sistem informasi berbasis web yang dibangun dengan Laravel untuk memenuhi kebutuhan administrasi, pelacakan stok, dan transaksi (Inbound & Outbound) pada perusahaan kontraktor **CV Ma Karya Artha Graha**. Sistem ini juga mengakomodasi pelanggan/klien bisnis seperti **Alupbesk**.
-
-## 🌟 Fitur Utama
-
-1. **Master Data Management**: Modul CRUD lengkap untuk mengelola Barang & Limit Stok, Kategori, Pelanggan/Klien, dan Supplier.
-2. **Dashboard Peringatan Dini**: Notifikasi (Red-Zone) untuk barang yang stoknya berada di bawah batas minimum, memicu pembuatan *Purchase Order (PO)* secara otomatis.
-3. **Smart Transaction Panel (Penjualan)**:
-   - Pencetakan **Surat Jalan** (kertas informasi barang & kuantitas untuk supir/pengiriman).
-   - Pencetakan **Faktur Penjualan / Nota Manufaktur** (kertas rincian harga, diskon, dan subtotal pembayaran).
-4. **Stock Ledger & Tracing (Audit Trail)**: Riwayat pergerakan stok rinci (IN/OUT) untuk melacak setiap rotasi barang secara akurat (PO, SO, Retur, Penyesuaian Barang Rusak/Hilang).
-5. **Autopilot Restock (Inbound)**: Modul untuk mengonfirmasi penerimaan barang dari *Supplier* berdasarkan PO yang dicetak otomatis oleh sistem.
-6. **Retur Barang**: Fasilitas untuk memproses retur (pengembalian barang) yang terintegrasi dengan penambahan/pengurangan stok otomatis.
+> **Branch `productions/v2-auth`** - Enterprise Grade Inventory System with Role-Based Access Control and Moving Average COGS.
 
 ---
 
-## 📐 Arsitektur & Alur Bisnis (Flowcharts)
+## 🚀 Apa yang Baru di Versi 2 (v2-auth)?
 
-Sistem dibagi menjadi 2 proses utama: **Outbound (Penjualan)** dan **Inbound (Pembelian/Restock)**.
+Cabang (`branch`) ini merupakan evolusi besar dari versi `main` (V1). Fokus utama pada `v2-auth` adalah **Keamanan Data**, **Akurasi Laba (HPP)**, dan **Alur Kerja Terproteksi (Approval/Drafts)**. 
 
-### A. Modul Outbound (Penjualan / Surat Jalan & Faktur)
-Proses penanganan pesanan, pengecekan ketersediaan stok, pengeluaran dari gudang, dan penagihan.
+Beda utama dari V1 (yang dirancang lebih bebas tanpa login), versi V2 ini sangat *strict* dan level enterprise.
 
-```mermaid
-graph TD
-    A[Terima Pesanan dari Customer <br/> cth: Alupbesk] --> B[Admin Input Sales Order / SO]
-    B --> C{Sistem Cek Stok Gudang}
-    C -- Stok Cukup --> D[Cetak Surat Jalan <br/> Hanya menampilkan Item & Qty, Tanpa Harga]
-    C -- Stok Tidak Cukup --> E[Tahan Pesanan & Trigger Proses Inbound]
-    D --> F[Berikan Surat Jalan ke Supir/Gudang <br/> Pengiriman Barang ke Customer]
-    F --> G[Cetak Faktur Penjualan <br/> Tampil Harga, Diskon, Subtotal]
-    G --> H[Stok di Sistem Berkurang Otomatis]
-    H --> DB[(Database Stok Utama)]
+### 1. 🛡️ Authentication & Role-Based Access Control (RBAC)
+Sistem sekarang diisolasi menggunakan **Laravel Breeze** untuk otentikasi dan **Spatie Laravel Permission** untuk hak akses sekat antar user.
+Setiap karyawan wajib memiliki akun untuk mengakses sistem, dan Menu Navigasi akan beradaptasi secara dinamis sesuai jabatan mereka.
+
+**Tersedia 4 Role Default (Hak Akses):**
+*   **Super Admin:** Akses penuh ke seluruh sistem tanpa batas (Master, Transaksi In/Out, Logs, User Management).
+*   **Admin:** Memiliki kewenangan mengelola semua Master Data, Sales (Out), maupun Restock (In) beserta Logs.
+*   **Kasir:** Hanya difokuskan pada *Front-liner*. Bisa melihat Master Data Customer dan Barang, tapi **hanya bisa membuat Sales Order**. Tidak ada akses ke Purchase Order (Kulakan).
+*   **Gudang:** Hanya difokuskan pada manajemen stok fisik. **Hanya bisa mengelola Purchase Order (In)** dan tidak ada akses ke menu Penjualan (Out).
+
+### 2. 📝 Administrative Prison (Sales Order - Drafts)
+Di V1, setiap kali nota Sales Order dibuat, stok langsung terpotong. Ini berbahaya untuk *human-error*.
+Di V2, alur diperbaiki dengan skema **DRAFT**:
+*   Admin/Kasir dapat membuat nota dan menyimpannya sebagai **Draft**.
+*   Form Draft dapat direvisi, diedit, atau dihapus berulang kali *tanpa mempengaruhi stok gudang sama sekali*.
+*   Stok baru akan dipotong secara *rigid* dan permanen ketika nota di-Lock (tombol **Submit & Kunci Transaksi** ditekan), yang mengubah status SO menjadi `Selesai`.
+
+### 3. 💵 Core Financial Engine (Moving Average COGS)
+Di V1, perhitungan modal/HPP (Harga Pokok Penjualan) rawan "halu" atau tidak sinkron akibat fluktuasi harga kulakan dari supplier.
+V2 menghapus "Financial Illusion" tersebut dengan logika berikut:
+*   **Purchase Orders (Inbound):** Kasir/Admin wajib memasukkan **Harga Beli Satuan** per item. Begitu fisik barang datang (Status PO menjadi *Received*), sistem secara otomatis menjalankan rumus **Moving Average** matematis untuk memperbaharui Modal/HPP rata-rata barang tersebut di database induk.
+*   **Sales Orders (Outbound):** Saat nota penjualan dikunci, sistem otomatis me-**Snapshot** `harga_beli_rata_rata` (Modal berjalan saat itu) dan menyimpannya ke dalam record nota. Meskipun 2 hari lagi harga modal kulakan naik, hitungan profit nota hari ini tidak akan ikut bergeser terdistorsi.
+
+---
+
+## 💻 Tech Stack Tambahan (V2)
+Selain core framework Laravel 11, Tailwind CSS, dan Phosphor icon di V1, V2 menggunakan:
+*   `laravel/breeze` (Auth scaffolding)
+*   `spatie/laravel-permission` (RBAC)
+
+---
+
+## 🔑 Default Credentials untuk Testing (Local)
+Agar mempermudah simulasi role saat review cabang ini, jalankan seeding (`php artisan db:seed --class=RolesAndPermissionsSeeder`). Credentials default yang ditanam:
+
+*   **Super Admin**: `superadmin@inventory.com` (pass: `password`)
+*   **Admin**: `admin@inventory.com` (pass: `password`)
+*   **Kasir**: `kasir@inventory.com` (pass: `password`)
+*   **Gudang**: `gudang@inventory.com` (pass: `password`)
+
+---
+
+## Instalasi (Clone khusus branch ini)
+
+1. Clone repository khusus branch `productions/v2-auth`:
+```bash
+git clone -b productions/v2-auth https://github.com/zzrftixx/Inventory.corp.git
 ```
-
-### B. Modul Inbound (Pembelian / Autopilot Restock)
-Proses pengawasan *Minimum Stock Level* agar gudang tidak kehabisan material.
-
-```mermaid
-graph TD
-    DB[(Database Stok Utama)] --> I[Sistem Cek Stok Terus Menerus]
-    I --> J{Apakah Stok Gudang < Limit Minimum?}
-    J -- Ya --> K[Sistem Menerbitkan Draf PO otomatis <br/> Daftar Kebutuhan Barang & Qty]
-    J -- Tidak --> L[Aman / Standby]
-    K --> M[Admin Konfirmasi Draf & Kirim Order ke Pabrik/Supplier]
-    M --> N[Barang Fisik Tiba & Admin Input Penerimaan Barang]
-    N --> O[Stok di Sistem Bertambah Otomatis]
-    O --> DB
+2. Jalankan dependensi:
+```bash
+composer install
+npm install && npm run build
 ```
-
----
-
-## 🗄️ Struktur Database (ERD)
-
-Database menggunakan rancangan enterprise (Bulletproof Design) yang mencegah redundansi, memudahkan pelacakan kerugian/keuntungan, dan menyediakan jejak audit (audit trails) via `STOCK_MOVEMENTS`.
-
-```mermaid
-erDiagram
-    USERS {
-        int id PK
-        string nama
-        string role "Admin / Gudang / Kasir"
-    }
-
-    CATEGORIES {
-        int id PK
-        string nama_kategori "Cth: Aksesoris, Kaca, Aluminium"
-    }
-
-    SUPPLIERS {
-        int id PK
-        string nama_supplier "Pabrik / Distributor"
-        string kontak
-    }
-
-    CUSTOMERS {
-        int id PK
-        string nama "Cth: Alupbesk, Umum"
-        string alamat
-        string no_telp
-    }
-    
-    ITEMS {
-        int id PK
-        string kode_barang "Kode Pabrik"
-        string nama_barang "Cth: HANDLE STAINLESS"
-        int category_id FK
-        string satuan "Cth: PSG, SET, PCS"
-        decimal harga_jual_default
-        int stok_saat_ini "Auto Update via Trigger"
-        int batas_stok_minimum
-    }
-
-    SALES_ORDERS {
-        int id PK
-        string no_faktur "INV-2026-001"
-        date tanggal_transaksi
-        int customer_id FK
-        int user_id FK "Pencatat SO"
-        decimal total_invoice
-        string status "Draft / Dikirim / Selesai / Retur"
-    }
-
-    SALES_ORDER_DETAILS {
-        int id PK
-        int sales_order_id FK
-        int item_id FK
-        int qty
-        decimal harga_satuan_saat_transaksi
-        decimal diskon
-        decimal subtotal_netto
-    }
-    
-    PURCHASE_ORDERS {
-        int id PK
-        string no_po
-        date tanggal_po
-        int supplier_id FK
-        int user_id FK "Pembuat PO"
-        string status "Draft / Ordered / Received"
-    }
-    
-    PURCHASE_ORDER_DETAILS {
-        int id PK
-        int purchase_order_id FK
-        int item_id FK
-        int qty_butuh
-    }
-
-    STOCK_MOVEMENTS {
-        int id PK
-        int item_id FK
-        string tipe_pergerakan "IN (PO/Retur) / OUT (SO/Rusak)"
-        int qty
-        int sisa_stok "Snapshot stok saat itu"
-        string referensi "No PO / No SO / Catatan"
-        int user_id FK "Yang Approve"
-        datetime timestamp
-    }
-
-    USERS ||--o{ SALES_ORDERS : "mencatat"
-    USERS ||--o{ PURCHASE_ORDERS : "membuat"
-    USERS ||--o{ STOCK_MOVEMENTS : "menyetujui"
-    
-    CATEGORIES ||--o{ ITEMS : "mengkelompokkan"
-    SUPPLIERS ||--o{ PURCHASE_ORDERS : "menerima"
-    CUSTOMERS ||--o{ SALES_ORDERS : "melakukan"
-    
-    SALES_ORDERS ||--|{ SALES_ORDER_DETAILS : "memiliki"
-    ITEMS ||--o{ SALES_ORDER_DETAILS : "tercatat di SO"
-    
-    PURCHASE_ORDERS ||--|{ PURCHASE_ORDER_DETAILS : "memiliki PO"
-    ITEMS ||--o{ PURCHASE_ORDER_DETAILS : "kebutuhan"
-    
-    ITEMS ||--o{ STOCK_MOVEMENTS : "memiliki history"
+3. Copy environment & Generate key:
+```bash
+cp .env.example .env
+php artisan key:generate
 ```
-
----
-
-## 🚀 Panduan Instalasi & Penggunaan
-
-### Kebutuhan Sistem
-* PHP >= 8.2
-* Composer
-* MySQL Server (Misal: XAMPP, Laragon, MAMP)
-
-### Langkah Instalasi
-
-1. **Clone Repository (atau download ZIP):**
-   ```bash
-   git clone https://github.com/zzrftixx/Inventory.corp.git
-   cd Inventory.corp
-   ```
-
-2. **Install Dependensi Laravel:**
-   ```bash
-   composer install
-   ```
-
-3. **Konfigurasi Environment:**
-   Salin file `.env.example` menjadi `.env`.
-   ```bash
-   cp .env.example .env
-   ```
-   Atur kredensial Database Anda di file `.env` yang baru saja dibuat:
-   ```env
-   DB_CONNECTION=mysql
-   DB_HOST=127.0.0.1
-   DB_PORT=3306
-   DB_DATABASE=masterinventorys
-   DB_USERNAME=root
-   DB_PASSWORD=
-   ```
-
-4. **Generate Application Key:**
-   ```bash
-   php artisan key:generate
-   ```
-
-5. **Buat Database SQL:**
-   Buka *phpMyAdmin* (atau aplikasi GUI database yang Anda gunakan) dan buat Schema/Database baru bernama `masterinventorys`.
-
-6. **Jalankan Migrations Database:**
-   Perintah ini akan secara otomatis membuat struktur tabel ke database `masterinventorys`.
-   ```bash
-   php artisan migrate:fresh
-   ```
-
-7. **Jalankan Development Server:**
-   ```bash
-   php artisan serve
-   ```
-   Akses aplikasi di Browser: `http://127.0.0.1:8000`
-
-### Penggunaan (Cara Mulai Mencoba)
-Setelah instalasi selesai, ikuti urutan ini untuk menggunakan sistem:
-1. Akses menu **Kategori Barang** (`/categories`). Daftarkan kategori, misal: *Kaca*, *Aksesoris*, *Aluminium*.
-2. Akses menu **Supplier** (`/suppliers`). Daftarkan pabrik tempat perusahan memesan material.
-3. Akses menu **Customer / Klien** (`/customers`). Daftarkan *Alupbesk* atau pelanggan lainnya.
-4. Akses menu **Barang & Stok** (`/items`). Daftarkan master data profil barang, harganya, dan tentukan limit minimum *restock*-nya.
-5. Selanjutnya, gunakan modul Transaksi (Inbound/Outbound) yang saling teringrasi di panel.
-
----
-
-> Dibuat khusus untuk **CV Ma Karya Artha Graha** dengan desain UI/UX canggih (_Tailwind CSS_) dan perancangan database (_bulletproof architecture_) by Engineer Support.
+4. Setup Database MySQL di `.env`, lalu migrate beserta seed untuk Auth user bawaan:
+```bash
+php artisan migrate --seed --class=RolesAndPermissionsSeeder
+```
