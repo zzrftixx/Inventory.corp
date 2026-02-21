@@ -18,6 +18,7 @@ use App\Http\Controllers\SalesOrderController;
 Route::resource('sales-orders', SalesOrderController::class);
 Route::get('sales-orders/{sales_order}/surat-jalan', [SalesOrderController::class, 'suratJalan'])->name('sales-orders.surat-jalan');
 Route::get('sales-orders/{sales_order}/faktur', [SalesOrderController::class, 'faktur'])->name('sales-orders.faktur');
+Route::post('sales-orders/{sales_order}/confirm', [SalesOrderController::class, 'confirm'])->name('sales-orders.confirm');
 
 use App\Http\Controllers\PurchaseOrderController;
 Route::resource('purchase-orders', PurchaseOrderController::class);

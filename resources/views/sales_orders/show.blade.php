@@ -23,7 +23,9 @@
             <div>
                 <p class="text-xs text-slate-400 mb-1">Status</p>
                 @if($salesOrder->status == 'Selesai')
-                    <span class="bg-emerald-100 text-emerald-800 py-1 px-3 rounded text-xs font-semibold">Selesai</span>
+                    <span class="bg-emerald-100 text-emerald-800 py-1 px-3 rounded text-xs font-semibold">Selesai (Locked)</span>
+                @elseif($salesOrder->status == 'Draft')
+                    <span class="bg-amber-100 text-amber-800 py-1 px-3 rounded text-xs font-semibold hover:animate-pulse">Draft</span>
                 @elseif($salesOrder->status == 'Batal')
                     <span class="bg-red-100 text-red-800 py-1 px-3 rounded text-xs font-semibold">Dibatalkan</span>
                 @else
@@ -56,12 +58,21 @@
     <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
         <h3 class="text-sm font-semibold text-slate-800">Rincian Barang Keluar</h3>
         <div class="flex space-x-2">
-            <a href="{{ route('sales-orders.surat-jalan', $salesOrder->id) }}" target="_blank" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center shadow-sm">
-                <i class="ph ph-printer mr-2 text-slate-400"></i> Cetak Surat Jalan
-            </a>
-            <a href="{{ route('sales-orders.faktur', $salesOrder->id) }}" target="_blank" class="bg-primary hover:bg-sky-600 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center shadow-sm">
-                <i class="ph ph-printer mr-2 text-sky-200"></i> Cetak Faktur (Invoice)
-            </a>
+            @if($salesOrder->status == 'Selesai')
+                <a href="{{ route('sales-orders.surat-jalan', $salesOrder->id) }}" target="_blank" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center shadow-sm">
+                    <i class="ph ph-printer mr-2 text-slate-400"></i> Cetak Surat Jalan
+                </a>
+                <a href="{{ route('sales-orders.faktur', $salesOrder->id) }}" target="_blank" class="bg-primary hover:bg-sky-600 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center shadow-sm">
+                    <i class="ph ph-printer mr-2 text-sky-200"></i> Cetak Faktur (Invoice)
+                </a>
+            @elseif($salesOrder->status == 'Draft')
+                <form action="{{ route('sales-orders.confirm', $salesOrder->id) }}" method="POST" onsubmit="return confirm('Kunci transaksi ini? QTY barang akan memotong stok gudang permanen.');">
+                    @csrf
+                    <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded text-sm font-bold transition-colors shadow-sm flex items-center animate-pulse">
+                        <i class="ph ph-lock-key mr-2"></i> Submit & Kunci Transaksi
+                    </button>
+                </form>
+            @endif
         </div>
     </div>
     <div class="overflow-x-auto">
@@ -105,11 +116,15 @@
 
 @if($salesOrder->status != 'Batal')
 <div class="flex justify-end mt-8 border-t border-slate-200 pt-6">
-    <form action="{{ route('sales-orders.destroy', $salesOrder->id) }}" method="POST" onsubmit="return confirm('PERINGATAN! Membatalkan pesanan ini akan menarik semua barang ke gudang (stok bertambah) kembali. Lanjutkan?');">
+    <form action="{{ route('sales-orders.destroy', $salesOrder->id) }}" method="POST" onsubmit="return confirm('{{ $salesOrder->status == 'Draft' ? 'Hapus DRAFT transaksi ini secara permanen?' : 'PERINGATAN! Membatalkan pesanan ini akan menarik semua barang ke gudang (stok bertambah) kembali. Lanjutkan?' }}');">
         @csrf
         @method('DELETE')
         <button type="submit" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 border border-red-200 rounded-lg text-sm font-medium transition-colors flex items-center">
-            <i class="ph ph-warning-circle mr-2 text-lg"></i> Void / Batalkan Transaksi Ini
+            @if($salesOrder->status == 'Draft')
+                <i class="ph ph-trash mr-2 text-lg"></i> Hapus Draft
+            @else
+                <i class="ph ph-warning-circle mr-2 text-lg"></i> Void / Batalkan Transaksi Ini
+            @endif
         </button>
     </form>
 </div>

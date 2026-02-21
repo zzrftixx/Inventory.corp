@@ -36,15 +36,20 @@
                     <td class="py-3 px-6 text-sm font-semibold text-slate-700">Rp {{ number_format($so->total_invoice, 0, ',', '.') }}</td>
                     <td class="py-3 px-6 text-sm text-center">
                         @if($so->status == 'Selesai')
-                            <span class="bg-emerald-100 text-emerald-800 py-1 px-3 rounded-full text-xs font-semibold">Selesai</span>
-                        @elseif($so->status == 'Batal')
-                            <span class="bg-red-100 text-red-800 py-1 px-3 rounded-full text-xs font-semibold">Batal</span>
+                            <span class="bg-emerald-100 text-emerald-800 py-1 px-3 rounded-full text-xs font-semibold">Selesai (Locked)</span>
+                        @elseif($so->status == 'Draft')
+                            <span class="bg-amber-100 text-amber-800 py-1 px-3 rounded-full text-xs font-semibold hover:animate-pulse">Draft</span>
                         @else
                             <span class="bg-slate-100 text-slate-800 py-1 px-3 rounded-full text-xs font-semibold">{{ $so->status }}</span>
                         @endif
                     </td>
                     <td class="py-3 px-6 text-right">
-                        <div class="flex justify-end space-x-2">
+                        <div class="flex justify-end space-x-2 items-center">
+                            @if($so->status == 'Draft')
+                                <a href="{{ route('sales-orders.edit', $so->id) }}" class="text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded text-xs font-medium transition-colors" title="Edit Draft">
+                                    <i class="ph ph-pencil-simple font-bold"></i>
+                                </a>
+                            @endif
                             <a href="{{ route('sales-orders.show', $so->id) }}" class="text-white bg-slate-600 hover:bg-slate-700 px-3 py-1.5 rounded text-xs font-medium transition-colors" title="Lihat Detail">
                                 Detail
                             </a>

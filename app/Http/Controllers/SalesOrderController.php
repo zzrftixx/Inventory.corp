@@ -42,41 +42,37 @@ class SalesOrderController extends Controller
         try {
             DB::beginTransaction();
 
-            // 1. Generate No Faktur
             $datePrefix = Carbon::parse($request->tanggal_transaksi)->format('Ymd');
             $lastOrder = SalesOrder::whereDate('tanggal_transaksi', $request->tanggal_transaksi)->orderBy('id', 'desc')->first();
             $sequence = $lastOrder ? (int)substr($lastOrder->no_faktur, -4) + 1 : 1;
             $noFaktur = 'INV-' . $datePrefix . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
 
-            // 2. Create Header
             $salesOrder = SalesOrder::create([
                 'no_faktur' => $noFaktur,
                 'tanggal_transaksi' => $request->tanggal_transaksi,
                 'customer_id' => $request->customer_id,
-                // Dynamically fetch first user if not authenticated
                 'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1), 
-                'total_invoice' => 0, // Will be calculated
-                'status' => 'Selesai' // Automatically assumed 'Selesai/Dikirim' for simplicity unless explicitly drafting
+                'total_invoice' => 0,
+                'status' => 'Draft' // Now starts as DRAFT
             ]);
 
             $totalInvoice = 0;
 
-            // 3. Process Details
             foreach ($request->items as $itemData) {
-                $item = Item::lockForUpdate()->findOrFail($itemData['id']);
+                $item = Item::findOrFail($itemData['id']);
                 
                 $qty = $itemData['qty'];
                 $diskon = $itemData['diskon'] ?? 0;
                 
-                if ($item->stok_saat_ini < $qty) {
-                    throw new \Exception("Stok tidak mencukupi untuk item: {$item->nama_barang}. Stok tersedia: {$item->stok_saat_ini}");
-                }
+                // We still check if they request impossible amount
+                // but we DO NOT deduct stock here.
+                // It is a draft. However, if stock is not enough for draft, it might be annoying later.
+                // We'll just warn or let it pass for now. Assuming draft ignores stock limits until submitted.
 
                 $hargaSatuan = $item->harga_jual_default;
                 $subtotalNetto = ($hargaSatuan * $qty) - $diskon;
                 $totalInvoice += $subtotalNetto;
 
-                // Create Detail
                 SalesOrderDetail::create([
                     'sales_order_id' => $salesOrder->id,
                     'item_id' => $item->id,
@@ -85,33 +81,17 @@ class SalesOrderController extends Controller
                     'diskon' => $diskon,
                     'subtotal_netto' => $subtotalNetto
                 ]);
-
-                // Update Item Stock
-                $item->stok_saat_ini -= $qty;
-                $item->save();
-
-                // Create Stock Movement (Audit)
-                StockMovement::create([
-                    'item_id' => $item->id,
-                    'tipe_pergerakan' => 'OUT',
-                    'qty' => $qty,
-                    'sisa_stok' => $item->stok_saat_ini,
-                    'referensi' => 'SO: ' . $noFaktur,
-                    'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
-                    'timestamp' => now()
-                ]);
             }
 
-            // Update Total Invoice
             $salesOrder->update(['total_invoice' => $totalInvoice]);
 
             DB::commit();
 
-            return redirect()->route('sales-orders.show', $salesOrder->id)->with('success', 'Transaksi Penjualan berhasil disimpan.');
+            return redirect()->route('sales-orders.show', $salesOrder->id)->with('success', 'Draft Sales Order berhasil disimpan. Silahkan periksa dan Kunci Transaksi jika sudah benar.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withInput()->with('error', 'Gagal memproses transaksi: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Gagal membuat Draft: ' . $e->getMessage());
         }
     }
 
@@ -135,12 +115,124 @@ class SalesOrderController extends Controller
         return view('sales_orders.faktur', compact('sales_order'));
     }
 
-    // Edit and Update are intentionally omitted to maintain data integrity for accounting
-    // Usually sales orders are voided or restocked via return mechanism in a strict system.
+    public function confirm(SalesOrder $sales_order)
+    {
+        if ($sales_order->status !== 'Draft') {
+            return back()->with('error', 'Hanya order berstatus Draft yang bisa dikunci.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($sales_order->details as $detail) {
+                $item = Item::lockForUpdate()->find($detail->item_id);
+                
+                if (!$item || $item->stok_saat_ini < $detail->qty) {
+                    $available = $item ? $item->stok_saat_ini : 0;
+                    throw new \Exception("Stok tidak memadai untuk {$item->nama_barang}. Butuh {$detail->qty}, Tersedia {$available}");
+                }
+
+                // Update stock
+                $item->stok_saat_ini -= $detail->qty;
+                $item->save();
+
+                // Record movement
+                StockMovement::create([
+                    'item_id' => $item->id,
+                    'tipe_pergerakan' => 'OUT',
+                    'qty' => $detail->qty,
+                    'sisa_stok' => $item->stok_saat_ini,
+                    'referensi' => 'SO: ' . $sales_order->no_faktur,
+                    'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
+                    'timestamp' => now()
+                ]);
+            }
+
+            $sales_order->update(['status' => 'Selesai']);
+
+            DB::commit();
+
+            return redirect()->route('sales-orders.show', $sales_order->id)->with('success', 'Transaksi berhasil dikunci (LOCKED) dan stok telah dipotong.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal mengunci transaksi: ' . $e->getMessage());
+        }
+    }
+
+    public function edit(SalesOrder $salesOrder)
+    {
+        if ($salesOrder->status !== 'Draft') {
+            return redirect()->route('sales-orders.show', $salesOrder->id)->with('error', 'Nota yang sudah terkunci (Selesai) tidak dapat diedit. Hubungi Admin/Bos untuk proses Retur/Void.');
+        }
+
+        $customers = Customer::orderBy('nama')->get();
+        $items = Item::where('stok_saat_ini', '>', 0)->orderBy('nama_barang')->get();
+        $salesOrder->load('details.item');
+        
+        return view('sales_orders.edit', compact('salesOrder', 'customers', 'items'));
+    }
+
+    public function update(Request $request, SalesOrder $salesOrder)
+    {
+        if ($salesOrder->status !== 'Draft') {
+            return back()->with('error', 'Akses ditolak. Nota sudah dilock.');
+        }
+
+        $request->validate([
+            'customer_id' => 'required|exists:customers,id',
+            'tanggal_transaksi' => 'required|date',
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'required|exists:items,id',
+            'items.*.qty' => 'required|integer|min:1',
+            'items.*.diskon' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $salesOrder->update([
+                'tanggal_transaksi' => $request->tanggal_transaksi,
+                'customer_id' => $request->customer_id,
+            ]);
+
+            $salesOrder->details()->delete();
+
+            $totalInvoice = 0;
+            foreach ($request->items as $itemData) {
+                $item = Item::findOrFail($itemData['id']);
+                
+                $qty = $itemData['qty'];
+                $diskon = $itemData['diskon'] ?? 0;
+                
+                $hargaSatuan = $item->harga_jual_default;
+                $subtotalNetto = ($hargaSatuan * $qty) - $diskon;
+                $totalInvoice += $subtotalNetto;
+
+                SalesOrderDetail::create([
+                    'sales_order_id' => $salesOrder->id,
+                    'item_id' => $item->id,
+                    'qty' => $qty,
+                    'harga_satuan_saat_transaksi' => $hargaSatuan,
+                    'diskon' => $diskon,
+                    'subtotal_netto' => $subtotalNetto
+                ]);
+            }
+
+            $salesOrder->update(['total_invoice' => $totalInvoice]);
+
+            DB::commit();
+
+            return redirect()->route('sales-orders.show', $salesOrder->id)->with('success', 'Draft Sales Order berhasil diperbarui.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withInput()->with('error', 'Gagal update draft: ' . $e->getMessage());
+        }
+    }
     
     public function destroy(SalesOrder $salesOrder)
     {
-        // Cancel/Void mechanism
         try {
             DB::beginTransaction();
             
@@ -148,7 +240,15 @@ class SalesOrderController extends Controller
                 throw new \Exception('Transaksi sudah dibatalkan sebelumnya.');
             }
 
-            // Return items to stock
+            // If still draft, just delete cleanly
+            if ($salesOrder->status == 'Draft') {
+                $salesOrder->details()->delete();
+                $salesOrder->delete();
+                DB::commit();
+                return redirect()->route('sales-orders.index')->with('success', 'Draft SO berhasil dihapus bersih.');
+            }
+
+            // If LOCKED (Selesai), we VOID it and return stock
             foreach ($salesOrder->details as $detail) {
                 $item = Item::lockForUpdate()->find($detail->item_id);
                 if ($item) {
@@ -171,7 +271,7 @@ class SalesOrderController extends Controller
             
             DB::commit();
             
-            return redirect()->route('sales-orders.index')->with('success', 'Transaksi berhasil dibatalkan dan stok dikembalikan.');
+            return redirect()->route('sales-orders.index')->with('success', 'Transaksi berhasil di-VOID (Retur) dan stok gudang sudah dikembalikan otomatis.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->route('sales-orders.index')->with('error', 'Gagal membatalkan transaksi: ' . $e->getMessage());
