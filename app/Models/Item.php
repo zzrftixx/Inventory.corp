@@ -12,6 +12,7 @@ class Item extends Model
         'category_id',
         'satuan',
         'harga_jual_default',
+        'harga_beli_rata_rata',
         'stok_saat_ini',
         'batas_stok_minimum'
     ];

@@ -1,59 +1,74 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Inventory.corp (V2: Auth & Financial Engine)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+> **Branch `productions/v2-auth`** - Enterprise Grade Inventory System with Role-Based Access Control and Moving Average COGS.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🚀 Apa yang Baru di Versi 2 (v2-auth)?
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Cabang (`branch`) ini merupakan evolusi besar dari versi `main` (V1). Fokus utama pada `v2-auth` adalah **Keamanan Data**, **Akurasi Laba (HPP)**, dan **Alur Kerja Terproteksi (Approval/Drafts)**. 
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Beda utama dari V1 (yang dirancang lebih bebas tanpa login), versi V2 ini sangat *strict* dan level enterprise.
 
-## Learning Laravel
+### 1. 🛡️ Authentication & Role-Based Access Control (RBAC)
+Sistem sekarang diisolasi menggunakan **Laravel Breeze** untuk otentikasi dan **Spatie Laravel Permission** untuk hak akses sekat antar user.
+Setiap karyawan wajib memiliki akun untuk mengakses sistem, dan Menu Navigasi akan beradaptasi secara dinamis sesuai jabatan mereka.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+**Tersedia 4 Role Default (Hak Akses):**
+*   **Super Admin:** Akses penuh ke seluruh sistem tanpa batas (Master, Transaksi In/Out, Logs, User Management).
+*   **Admin:** Memiliki kewenangan mengelola semua Master Data, Sales (Out), maupun Restock (In) beserta Logs.
+*   **Kasir:** Hanya difokuskan pada *Front-liner*. Bisa melihat Master Data Customer dan Barang, tapi **hanya bisa membuat Sales Order**. Tidak ada akses ke Purchase Order (Kulakan).
+*   **Gudang:** Hanya difokuskan pada manajemen stok fisik. **Hanya bisa mengelola Purchase Order (In)** dan tidak ada akses ke menu Penjualan (Out).
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 2. 📝 Administrative Prison (Sales Order - Drafts)
+Di V1, setiap kali nota Sales Order dibuat, stok langsung terpotong. Ini berbahaya untuk *human-error*.
+Di V2, alur diperbaiki dengan skema **DRAFT**:
+*   Admin/Kasir dapat membuat nota dan menyimpannya sebagai **Draft**.
+*   Form Draft dapat direvisi, diedit, atau dihapus berulang kali *tanpa mempengaruhi stok gudang sama sekali*.
+*   Stok baru akan dipotong secara *rigid* dan permanen ketika nota di-Lock (tombol **Submit & Kunci Transaksi** ditekan), yang mengubah status SO menjadi `Selesai`.
 
-## Laravel Sponsors
+### 3. 💵 Core Financial Engine (Moving Average COGS)
+Di V1, perhitungan modal/HPP (Harga Pokok Penjualan) rawan "halu" atau tidak sinkron akibat fluktuasi harga kulakan dari supplier.
+V2 menghapus "Financial Illusion" tersebut dengan logika berikut:
+*   **Purchase Orders (Inbound):** Kasir/Admin wajib memasukkan **Harga Beli Satuan** per item. Begitu fisik barang datang (Status PO menjadi *Received*), sistem secara otomatis menjalankan rumus **Moving Average** matematis untuk memperbaharui Modal/HPP rata-rata barang tersebut di database induk.
+*   **Sales Orders (Outbound):** Saat nota penjualan dikunci, sistem otomatis me-**Snapshot** `harga_beli_rata_rata` (Modal berjalan saat itu) dan menyimpannya ke dalam record nota. Meskipun 2 hari lagi harga modal kulakan naik, hitungan profit nota hari ini tidak akan ikut bergeser terdistorsi.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## 💻 Tech Stack Tambahan (V2)
+Selain core framework Laravel 11, Tailwind CSS, dan Phosphor icon di V1, V2 menggunakan:
+*   `laravel/breeze` (Auth scaffolding)
+*   `spatie/laravel-permission` (RBAC)
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+---
 
-## Contributing
+## 🔑 Default Credentials untuk Testing (Local)
+Agar mempermudah simulasi role saat review cabang ini, jalankan seeding (`php artisan db:seed --class=RolesAndPermissionsSeeder`). Credentials default yang ditanam:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+*   **Super Admin**: `superadmin@inventory.com` (pass: `password`)
+*   **Admin**: `admin@inventory.com` (pass: `password`)
+*   **Kasir**: `kasir@inventory.com` (pass: `password`)
+*   **Gudang**: `gudang@inventory.com` (pass: `password`)
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Instalasi (Clone khusus branch ini)
 
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+1. Clone repository khusus branch `productions/v2-auth`:
+```bash
+git clone -b productions/v2-auth https://github.com/zzrftixx/Inventory.corp.git
+```
+2. Jalankan dependensi:
+```bash
+composer install
+npm install && npm run build
+```
+3. Copy environment & Generate key:
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+4. Setup Database MySQL di `.env`, lalu migrate beserta seed untuk Auth user bawaan:
+```bash
+php artisan migrate --seed --class=RolesAndPermissionsSeeder
+```

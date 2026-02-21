@@ -10,6 +10,7 @@ class SalesOrderDetail extends Model
         'sales_order_id',
         'item_id',
         'qty',
+        'harga_modal_saat_transaksi',
         'harga_satuan_saat_transaksi',
         'diskon',
         'subtotal_netto'
