@@ -81,6 +81,8 @@
                     <th class="py-3 px-6 font-medium text-xs uppercase tracking-wider">Kode Barang</th>
                     <th class="py-3 px-6 font-medium text-xs uppercase tracking-wider">Nama Barang</th>
                     <th class="py-3 px-6 font-medium text-xs uppercase tracking-wider text-center">Qty Dipesan</th>
+                    <th class="py-3 px-6 font-medium text-xs uppercase tracking-wider text-right">Harga Sat.</th>
+                    <th class="py-3 px-6 font-medium text-xs uppercase tracking-wider text-right">Subtotal</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -92,9 +94,17 @@
                     <td class="py-3 px-6 text-sm text-center font-bold text-slate-800">
                         {{ $detail->qty_butuh }} <span class="text-xs text-slate-500 font-normal ml-1">{{ $detail->item->satuan ?? '' }}</span>
                     </td>
+                    <td class="py-3 px-6 text-sm text-right text-slate-600">Rp {{ number_format($detail->harga_beli_satuan, 0, ',', '.') }}</td>
+                    <td class="py-3 px-6 text-sm text-right font-semibold text-slate-800">Rp {{ number_format($detail->qty_butuh * $detail->harga_beli_satuan, 0, ',', '.') }}</td>
                 </tr>
                 @endforeach
             </tbody>
+            <tfoot class="bg-slate-50 border-t border-slate-200">
+                <tr>
+                    <td colspan="5" class="py-4 px-6 text-right font-bold text-slate-700 uppercase tracking-widest text-xs">Total Tagihan PO</td>
+                    <td class="py-4 px-6 text-right font-bold text-primary text-lg">Rp {{ number_format($purchaseOrder->total_amount_po, 0, ',', '.') }}</td>
+                </tr>
+            </tfoot>
         </table>
     </div>
 </div>

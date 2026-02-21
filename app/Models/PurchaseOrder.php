@@ -11,7 +11,8 @@ class PurchaseOrder extends Model
         'tanggal_po',
         'supplier_id',
         'user_id',
-        'status'
+        'status',
+        'total_amount_po'
     ];
 
     public function supplier()

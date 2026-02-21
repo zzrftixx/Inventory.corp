@@ -27,6 +27,7 @@
                     <th class="py-3 px-6 font-medium text-sm">No. PO</th>
                     <th class="py-3 px-6 font-medium text-sm">Tanggal</th>
                     <th class="py-3 px-6 font-medium text-sm">Supplier</th>
+                    <th class="py-3 px-6 font-medium text-sm text-right">Total Tagihan</th>
                     <th class="py-3 px-6 font-medium text-sm text-center">Status</th>
                     <th class="py-3 px-6 font-medium text-sm text-right">Aksi</th>
                 </tr>
@@ -37,6 +38,7 @@
                     <td class="py-3 px-6 text-sm font-semibold text-primary">{{ $po->no_po }}</td>
                     <td class="py-3 px-6 text-sm text-slate-600">{{ \Carbon\Carbon::parse($po->tanggal_po)->format('d M Y') }}</td>
                     <td class="py-3 px-6 text-sm text-slate-800 font-medium">{{ $po->supplier->nama_supplier ?? '-' }}</td>
+                    <td class="py-3 px-6 text-sm text-right font-bold text-slate-700">Rp {{ number_format($po->total_amount_po, 0, ',', '.') }}</td>
                     <td class="py-3 px-6 text-sm text-center">
                         @if($po->status == 'Received')
                             <span class="bg-emerald-100 text-emerald-800 py-1 px-3 rounded-full text-xs font-semibold">Diterima Lengkap</span>
@@ -56,7 +58,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" class="py-8 text-center text-slate-500 text-sm">
+                    <td colspan="6" class="py-8 text-center text-slate-500 text-sm">
                         Belum ada riwayat Purchase Order.
                     </td>
                 </tr>

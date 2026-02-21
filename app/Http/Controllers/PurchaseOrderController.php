@@ -42,6 +42,7 @@ class PurchaseOrderController extends Controller
             'items' => 'required|array|min:1',
             'items.*.id' => 'required|exists:items,id',
             'items.*.qty_butuh' => 'required|integer|min:1',
+            'items.*.harga_beli_satuan' => 'required|numeric|min:0',
         ]);
 
         try {
@@ -59,17 +60,25 @@ class PurchaseOrderController extends Controller
                 'tanggal_po' => $request->tanggal_po,
                 'supplier_id' => $request->supplier_id,
                 'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1), // Default user for now
-                'status' => 'Ordered' 
+                'status' => 'Ordered',
+                'total_amount_po' => 0
             ]);
 
+            $total_po = 0;
             // 3. Process Details
             foreach ($request->items as $itemData) {
+                $subtotal = $itemData['qty_butuh'] * $itemData['harga_beli_satuan'];
+                $total_po += $subtotal;
+
                 PurchaseOrderDetail::create([
                     'purchase_order_id' => $purchaseOrder->id,
                     'item_id' => $itemData['id'],
-                    'qty_butuh' => $itemData['qty_butuh']
+                    'qty_butuh' => $itemData['qty_butuh'],
+                    'harga_beli_satuan' => $itemData['harga_beli_satuan']
                 ]);
             }
+            
+            $purchaseOrder->update(['total_amount_po' => $total_po]);
 
             DB::commit();
 
@@ -99,13 +108,27 @@ class PurchaseOrderController extends Controller
             foreach ($purchaseOrder->details as $detail) {
                 $item = Item::lockForUpdate()->find($detail->item_id);
                 if ($item) {
-                    $item->stok_saat_ini += $detail->qty_butuh;
+                    // Cogs / Moving Average Logic
+                    $old_stok = $item->stok_saat_ini;
+                    $old_avg = $item->harga_beli_rata_rata;
+                    $new_qty = $detail->qty_butuh;
+                    $new_price = $detail->harga_beli_satuan;
+                    
+                    $total_stok = $old_stok + $new_qty;
+                    if ($total_stok > 0) {
+                        $new_avg = (($old_stok * $old_avg) + ($new_qty * $new_price)) / $total_stok;
+                    } else {
+                        $new_avg = $new_price;
+                    }
+
+                    $item->harga_beli_rata_rata = $new_avg;
+                    $item->stok_saat_ini = $total_stok;
                     $item->save();
 
                     StockMovement::create([
                         'item_id' => $item->id,
                         'tipe_pergerakan' => 'IN',
-                        'qty' => $detail->qty_butuh,
+                        'qty' => $new_qty,
                         'sisa_stok' => $item->stok_saat_ini,
                         'referensi' => 'Terima PO: ' . $purchaseOrder->no_po,
                         'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),

@@ -77,6 +77,7 @@ class SalesOrderController extends Controller
                     'sales_order_id' => $salesOrder->id,
                     'item_id' => $item->id,
                     'qty' => $qty,
+                    'harga_modal_saat_transaksi' => $item->harga_beli_rata_rata,
                     'harga_satuan_saat_transaksi' => $hargaSatuan,
                     'diskon' => $diskon,
                     'subtotal_netto' => $subtotalNetto
@@ -213,6 +214,7 @@ class SalesOrderController extends Controller
                     'sales_order_id' => $salesOrder->id,
                     'item_id' => $item->id,
                     'qty' => $qty,
+                    'harga_modal_saat_transaksi' => $item->harga_beli_rata_rata,
                     'harga_satuan_saat_transaksi' => $hargaSatuan,
                     'diskon' => $diskon,
                     'subtotal_netto' => $subtotalNetto
