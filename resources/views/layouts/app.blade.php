@@ -102,10 +102,60 @@
             <div class="flex items-center">
                 <h1 class="text-xl font-semibold text-slate-800">@yield('header', 'Dashboard')</h1>
             </div>
+
+            @php
+                $lowStockCount = 0;
+                if (auth()->check() && auth()->user()->hasAnyRole(['Super Admin', 'Admin', 'Gudang'])) {
+                    $lowStockCount = \App\Models\Item::whereRaw('stok_saat_ini <= batas_stok_minimum')->count();
+                }
+            @endphp
             <div class="flex items-center space-x-4">
-                <button class="text-slate-500 hover:text-primary transition-colors">
-                    <i class="ph ph-bell text-xl"></i>
-                </button>
+                
+                <!-- Notification Bell Dropdown -->
+                <div class="relative group">
+                    <button class="relative p-2 text-slate-500 hover:text-primary transition-colors focus:outline-none">
+                        <i class="ph ph-bell text-xl"></i>
+                        @if($lowStockCount > 0)
+                            <span class="absolute top-1 right-1 flex h-2.5 w-2.5">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                            </span>
+                        @endif
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-lg border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
+                        <div class="px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+                            <h3 class="text-sm font-semibold text-slate-800">Notifikasi</h3>
+                            @if($lowStockCount > 0)
+                                <span class="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">{{ $lowStockCount }} Baru</span>
+                            @endif
+                        </div>
+                        <div class="max-h-64 overflow-y-auto">
+                            @if($lowStockCount > 0)
+                                <a href="{{ route('dashboard') }}" class="block px-4 py-4 hover:bg-slate-50 border-b border-slate-50 transition-colors">
+                                    <div class="flex items-start">
+                                        <div class="flex-shrink-0 mt-0.5">
+                                            <i class="ph-fill ph-warning-circle text-red-500 text-2xl"></i>
+                                        </div>
+                                        <div class="ml-3">
+                                            <p class="text-sm font-bold text-slate-800">Peringatan Stok Kritis!</p>
+                                            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Terdapat <span class="font-bold text-red-500">{{ $lowStockCount }} tipe barang</span> yang telah menyentuh batas minimum. Segera lakukan Purchase Order (Restock) sebelum kehabisan.</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            @else
+                                <div class="px-4 py-8 text-center flex flex-col items-center justify-center">
+                                    <div class="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                                        <i class="ph-fill ph-bell-z text-slate-300 text-2xl"></i>
+                                    </div>
+                                    <p class="text-sm font-medium text-slate-800">Semua Aman!</p>
+                                    <p class="text-xs text-slate-500 mt-1">Belum ada notifikasi baru untuk Anda.</p>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
                 <form method="POST" action="{{ route('logout') }}" class="m-0 p-0">
                     @csrf
                     <button type="submit" class="text-slate-500 hover:text-red-500 transition-colors flex items-center text-sm font-medium">
