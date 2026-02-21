@@ -98,7 +98,7 @@
     <!-- Main Content -->
     <main class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50">
         <!-- Top Navbar -->
-        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-10">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-50 relative">
             <div class="flex items-center">
                 <h1 class="text-xl font-semibold text-slate-800">@yield('header', 'Dashboard')</h1>
             </div>
