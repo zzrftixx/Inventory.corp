@@ -32,7 +32,7 @@
     <!-- Sidebar -->
     <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col transition-all duration-300">
         <div class="h-16 flex items-center px-6 border-b border-slate-800">
-            <i class="ph-fill ph-buildings text-primary text-2xl mr-3"></i>
+            <img src="{{ asset('images/logomakarya.png') }}" alt="Logo" class="h-8 w-auto mr-3 object-contain" />
             <span class="text-white font-bold text-lg tracking-wide">MA KARYA</span>
         </div>
         
