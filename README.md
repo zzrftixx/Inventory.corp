@@ -1,44 +1,41 @@
-# Inventory.corp (V2: Auth & Financial Engine)
+# Inventory.corp (V3: UI & Document Polishing)
 
-> **Branch `productions/v2-auth`** - Enterprise Grade Inventory System with Role-Based Access Control and Moving Average COGS.
-
----
-
-## 🚀 Apa yang Baru di Versi 2 (v2-auth)?
-
-Cabang (`branch`) ini merupakan evolusi besar dari versi `main` (V1). Fokus utama pada `v2-auth` adalah **Keamanan Data**, **Akurasi Laba (HPP)**, dan **Alur Kerja Terproteksi (Approval/Drafts)**. 
-
-Beda utama dari V1 (yang dirancang lebih bebas tanpa login), versi V2 ini sangat *strict* dan level enterprise.
-
-### 1. 🛡️ Authentication & Role-Based Access Control (RBAC)
-Sistem sekarang diisolasi menggunakan **Laravel Breeze** untuk otentikasi dan **Spatie Laravel Permission** untuk hak akses sekat antar user.
-Setiap karyawan wajib memiliki akun untuk mengakses sistem, dan Menu Navigasi akan beradaptasi secara dinamis sesuai jabatan mereka.
-
-**Tersedia 4 Role Default (Hak Akses):**
-*   **Super Admin:** Akses penuh ke seluruh sistem tanpa batas (Master, Transaksi In/Out, Logs, User Management).
-*   **Admin:** Memiliki kewenangan mengelola semua Master Data, Sales (Out), maupun Restock (In) beserta Logs.
-*   **Kasir:** Hanya difokuskan pada *Front-liner*. Bisa melihat Master Data Customer dan Barang, tapi **hanya bisa membuat Sales Order**. Tidak ada akses ke Purchase Order (Kulakan).
-*   **Gudang:** Hanya difokuskan pada manajemen stok fisik. **Hanya bisa mengelola Purchase Order (In)** dan tidak ada akses ke menu Penjualan (Out).
-
-### 2. 📝 Administrative Prison (Sales Order - Drafts)
-Di V1, setiap kali nota Sales Order dibuat, stok langsung terpotong. Ini berbahaya untuk *human-error*.
-Di V2, alur diperbaiki dengan skema **DRAFT**:
-*   Admin/Kasir dapat membuat nota dan menyimpannya sebagai **Draft**.
-*   Form Draft dapat direvisi, diedit, atau dihapus berulang kali *tanpa mempengaruhi stok gudang sama sekali*.
-*   Stok baru akan dipotong secara *rigid* dan permanen ketika nota di-Lock (tombol **Submit & Kunci Transaksi** ditekan), yang mengubah status SO menjadi `Selesai`.
-
-### 3. 💵 Core Financial Engine (Moving Average COGS)
-Di V1, perhitungan modal/HPP (Harga Pokok Penjualan) rawan "halu" atau tidak sinkron akibat fluktuasi harga kulakan dari supplier.
-V2 menghapus "Financial Illusion" tersebut dengan logika berikut:
-*   **Purchase Orders (Inbound):** Kasir/Admin wajib memasukkan **Harga Beli Satuan** per item. Begitu fisik barang datang (Status PO menjadi *Received*), sistem secara otomatis menjalankan rumus **Moving Average** matematis untuk memperbaharui Modal/HPP rata-rata barang tersebut di database induk.
-*   **Sales Orders (Outbound):** Saat nota penjualan dikunci, sistem otomatis me-**Snapshot** `harga_beli_rata_rata` (Modal berjalan saat itu) dan menyimpannya ke dalam record nota. Meskipun 2 hari lagi harga modal kulakan naik, hitungan profit nota hari ini tidak akan ikut bergeser terdistorsi.
+> **Branch `productions/v3-ui-docs`** - Refined User Interface and Authentic Print Documents.
 
 ---
 
-## 💻 Tech Stack Tambahan (V2)
-Selain core framework Laravel 11, Tailwind CSS, dan Phosphor icon di V1, V2 menggunakan:
-*   `laravel/breeze` (Auth scaffolding)
-*   `spatie/laravel-permission` (RBAC)
+## ✨ Apa yang Baru di Versi 3 (v3-ui-docs)?
+
+Cabang (`branch`) ini merupakan penyempurnaan estetika (UI) dan keakuratan dokumen cetak (Surat Jalan & Faktur) dari versi sebelumnya (`v2-auth`).
+
+Fokus utama V3 ini adalah memberikan sentuhan identitas perusahaan yang kuat dan memastikan dokumen siap tayang ke pelanggan maupun supplier tanpa perlu revisi manual lagi.
+
+### 1. 🖼️ Dynamic Favicon & Browser Identity
+Menggantikan *favicon* standar bawaan Laravel/Server menjadi logo asli **CV Ma Karya Artha Graha** (`logomakarya.png`). 
+Perubahan ini terlihat di:
+- Tab Browser (saat membuka aplikasi)
+- Header Sidebar (pojok kiri atas di dalam Dashboard)
+- Halaman Login / Registrasi
+
+### 2. 🧾 Authentic Print Documents (Komersial Ready)
+Pada versi sebelumnya, dokumen Cetak/Print (Surat Jalan, Faktur, PO) masih menggunakan alamat dan nomor telepon "Contoh Alamat Perusahaan No.123".
+
+Di V3 ini, dokumen pengiriman dan penagihan telah diisi dengan informasi *real* yang siap diberikan ke Pelanggan maupun diserahkan ke Vendor:
+- **Nama Usaha**: CV MA KARYA ARTHA GRAHA
+- **Alamat Asli**: Jl. Karang Tengah Sitimulyo, Karang Anom, Sitimulyo, Kec. Piyungan, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55792
+- **Telp/Hotline**: 0851 0158 8887
+- **Email**: cv.makarya.ag@gmail.com
+
+Dokumen yang terdampak:
+1. `Surat Jalan` (Sales Order - Outbound)
+2. `Faktur Penjualan` (Sales Order - Outbound)
+3. `Purchase Order` (Kulakan - Inbound)
+
+### 3. 🔔 Real-Time Notification Bell
+Menyempurnakan kapabilitas Sistem Limit Stok (dari V1).
+- Terdapat Ikon Lonceng di pojok kanan atas Navbar yang akan **berkedip merah** (*Ping Alert*) otomatis jika ada item gudang yang menyentuh/berada di bawah *batas minimum*.
+- Diklik memunculkan Dropdown list jumlah barang kritis.
+- **Terproteksi RBAC**: Notifikasi peringatan stok ini *hanya muncul* untuk hak akses Admin Gudang dan (Super) Admin. Kasir tidak akan melihatnya.
 
 ---
 
@@ -52,11 +49,11 @@ Agar mempermudah simulasi role saat review cabang ini, jalankan seeding (`php ar
 
 ---
 
-## Instalasi (Clone khusus branch ini)
+## Instalasi (Clone khusus branch V3)
 
-1. Clone repository khusus branch `productions/v2-auth`:
+1. Clone repository khusus branch `productions/v3-ui-docs`:
 ```bash
-git clone -b productions/v2-auth https://github.com/zzrftixx/Inventory.corp.git
+git clone -b productions/v3-ui-docs https://github.com/zzrftixx/Inventory.corp.git
 ```
 2. Jalankan dependensi:
 ```bash
