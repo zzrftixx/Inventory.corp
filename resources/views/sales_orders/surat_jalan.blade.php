@@ -31,8 +31,9 @@
         <div>
             <h1 class="text-2xl font-bold uppercase tracking-widest text-[#1e3a8a]">CV MA KARYA ARTHA GRAHA</h1>
             <p class="text-sm mt-1">Specialist Aluminium & Glass Contractor</p>
-            <p class="text-sm">Telp: 0812-XXXX-XXXX</p>
-            <p class="text-sm">Jl. Contoh Alamat Perusahaan No. 123, Kota</p>
+            <p class="text-sm">Telp: 0851 0158 8887</p>
+            <p class="text-sm">Email: cv.makarya.ag@gmail.com</p>
+            <p class="text-sm w-80 mt-1">Jl. Karang Tengah Sitimulyo, Karang Anom, Sitimulyo, Kec. Piyungan, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55792</p>
         </div>
         <div class="text-right">
             <h2 class="text-3xl font-bold text-gray-800 uppercase tracking-widest">Surat Jalan</h2>
