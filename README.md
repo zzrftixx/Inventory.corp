@@ -4,11 +4,14 @@
 
 ---
 
-## 🏗️ Tujuan Branch Ini
+## 🏗️ Fungsi & Tujuan Branch Ini
 
 Branch ini adalah *copy* langsung dari versi V3 (Final Production), namun **sengaja disiapkan dengan kumpulan data contoh (Dummy Data) yang 100% Realistis** layaknya perusahaan CV Ma Karya sungguhan. 
 
-Ini sangat cocok digunakan jika Anda ingin mendemokan aplikasi ke orang lain, mempresentasikan cara kerja aplikasi, atau sekadar melakukan eksperimen *testing* fungsi kasir tanpa perlu capek meng-input data master dari awal.
+Fungsi utama dari branch `sample-real-database` ini antara lain:
+1. **Pemaparan Presentasi Klien/Vendor:** Memudahkan *showcase* kelayakan aplikasi saat mendemokan alur transaksi secara profesional tanpa harus input item fiktif yang memalukan.
+2. **Onboarding Pegawai Baru:** Lingkungan yang aman (*Sandbox*) untuk melatih dan membiasakan calon Kasir / Admin Gudang dalam membuat PO dan Sales Order tanpa takut merusak *Data Production* asli CV Ma Karya.
+3. **Uji Coba Limit Testing:** Menguji skenario laporan finansial dan profit margin dengan data *Cost of Goods Sold* (COGS) komponen material aluminium yang terhitung realistis layaknya aslinya.
 
 Data contoh yang ditanamkan mengambil studi kasus **Pabrik Ekstrusi Aluminium Alexindo** dan **Kaca Asahimas**.
 
