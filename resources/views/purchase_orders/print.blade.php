@@ -32,8 +32,8 @@
             <h1 class="text-3xl font-black uppercase tracking-tight text-gray-900">CV MA KARYA Artha Graha</h1>
             <p class="text-sm font-bold text-gray-500 tracking-widest mt-1">PURCHASE ORDER</p>
             <div class="mt-4 text-sm text-gray-600">
-                <p>Jl. Contoh Alamat Perusahaan No. 123</p>
-                <p>Telp: 0812-XXXX-XXXX</p>
+                <p>Jl. Karang Tengah Sitimulyo, Karang Anom, Sitimulyo, Kec. Piyungan, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55792</p>
+                <p>Telp: 0851 0158 8887 | Email: cv.makarya.ag@gmail.com</p>
             </div>
         </div>
         <div class="text-right">

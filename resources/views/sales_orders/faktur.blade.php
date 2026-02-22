@@ -32,8 +32,8 @@
             <h1 class="text-3xl font-black tracking-tight text-[#0ea5e9]">CV MA KARYA Artha Graha</h1>
             <p class="text-sm mt-1 text-gray-500 font-medium tracking-wide">ALUMINIUM & GLASS FABRICATION</p>
             <div class="mt-3 text-sm text-gray-700">
-                <p>Jl. Contoh Alamat Perusahaan No. 123, Kota Cirebon</p>
-                <p>Telp: 0812-XXXX-XXXX | Email: billing@cvmakarya.com</p>
+                <p>Jl. Karang Tengah Sitimulyo, Karang Anom, Sitimulyo, Kec. Piyungan, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55792</p>
+                <p>Telp: 0851 0158 8887 | Email: cv.makarya.ag@gmail.com</p>
             </div>
         </div>
         <div class="text-right">
