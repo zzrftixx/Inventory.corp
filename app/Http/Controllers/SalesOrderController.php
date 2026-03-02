@@ -23,8 +23,8 @@ class SalesOrderController extends Controller
     public function create()
     {
         $customers = Customer::orderBy('nama')->get();
-        // Load items that have stock > 0
-        $items = Item::where('stok_saat_ini', '>', 0)->orderBy('nama_barang')->get();
+        // Item fetching array is removed because we now use AJAX Server-Side Rendering via Select2
+        $items = []; 
         return view('sales_orders.create', compact('customers', 'items'));
     }
 
@@ -168,7 +168,8 @@ class SalesOrderController extends Controller
         }
 
         $customers = Customer::orderBy('nama')->get();
-        $items = Item::where('stok_saat_ini', '>', 0)->orderBy('nama_barang')->get();
+        // Item fetching array is removed because we now use AJAX Server-Side Rendering via Select2
+        $items = []; 
         $salesOrder->load('details.item');
         
         return view('sales_orders.edit', compact('salesOrder', 'customers', 'items'));

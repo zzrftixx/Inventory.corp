@@ -85,14 +85,16 @@ class ItemController extends Controller
         $items = Item::where('kode_barang', 'LIKE', "%{$search}%")
             ->orWhere('nama_barang', 'LIKE', "%{$search}%")
             ->limit(20)
-            ->get(['id', 'kode_barang', 'nama_barang', 'harga_jual_default']);
+            ->get(['id', 'kode_barang', 'nama_barang', 'harga_jual_default', 'stok_saat_ini', 'satuan']);
 
         // Format data agar bisa dibaca langsung oleh library Select2
         $formattedItems = $items->map(function ($item) {
             return [
                 'id' => $item->id,
                 'text' => $item->kode_barang . ' - ' . $item->nama_barang,
-                'price' => $item->harga_jual_default
+                'price' => $item->harga_jual_default,
+                'stok_saat_ini' => $item->stok_saat_ini,
+                'satuan' => $item->satuan
             ];
         });
 

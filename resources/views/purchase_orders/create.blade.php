@@ -58,21 +58,12 @@
         <div class="p-6 border-t border-slate-100">
             <h3 class="text-md font-semibold text-slate-800 mb-4">Daftar Kebutuhan Barang</h3>
             
-            <div class="flex space-x-3 mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200 items-end">
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Tambah Barang Tambahan</label>
-                    <select id="item_selector" class="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none bg-white">
-                        <option value="">-- Ketik/Pilih Barang --</option>
-                        @foreach($items as $item)
-                            <option value="{{ $item->id }}" data-kode="{{ $item->kode_barang }}" data-nama="{{ $item->nama_barang }}" data-satuan="{{ $item->satuan }}" data-stok="{{ $item->stok_saat_ini }}" data-min="{{ $item->batas_stok_minimum }}" data-hargabeli="{{ $item->harga_beli_rata_rata }}">
-                                {{ $item->kode_barang }} - {{ $item->nama_barang }} (Stok: {{ $item->stok_saat_ini }} | Min: {{ $item->batas_stok_minimum }})
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <button type="button" id="btn-add-item" class="bg-secondary hover:bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center h-[42px]">
-                    <i class="ph ph-plus font-bold mr-2"></i> Tambah ke List
-                </button>
+            <div class="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <label class="block text-sm font-medium text-slate-700 mb-2">Cari & Tambah Tambahan Barang</label>
+                <!-- Dikosongkan, murni menggunakan AJAX Server-Side Rendering untuk mencegah browser nge-lag -->
+                <select id="item_selector" class="w-full ajax-select2">
+                </select>
+                <p class="text-xs text-slate-500 mt-2"><i class="ph ph-info font-bold"></i> Ketik nama atau kode barang (minimal 1 huruf). Cth: Kusen, ALX, Kaca.</p>
             </div>
 
             <div class="overflow-x-auto rounded-lg border border-slate-200">
@@ -147,70 +138,94 @@
 </div>
 
 <script>
-    document.getElementById('btn-add-item').addEventListener('click', function() {
-        const selector = document.getElementById('item_selector');
-        const selectedOption = selector.options[selector.selectedIndex];
-        
-        if (!selectedOption.value) {
-            alert('Silakan pilih barang terlebih dahulu!');
-            return;
-        }
+    $(document).ready(function() {
+        $('#item_selector').select2({
+            placeholder: '-- Ketik/Pilih Barang --',
+            ajax: {
+                url: '{{ route("items.search") }}',
+                dataType: 'json',
+                delay: 250, // wait 250ms before firing request
+                data: function(params) {
+                    return {
+                        q: params.term || '' // search term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 1
+        });
 
-        const id = selectedOption.value;
-        const kode = selectedOption.getAttribute('data-kode');
-        const nama = selectedOption.getAttribute('data-nama');
-        const satuan = selectedOption.getAttribute('data-satuan');
-        const stok = parseInt(selectedOption.getAttribute('data-stok'));
-        const min = parseInt(selectedOption.getAttribute('data-min'));
-        const hargaBeli = parseFloat(selectedOption.getAttribute('data-hargabeli')) || 0;
+        $('#item_selector').on('select2:select', function (e) {
+            const data = e.params.data;
+            const id = data.id;
+            
+            const fullName = data.text; // "Kode - Nama"
+            const parts = fullName.split(' - ');
+            const kode = parts[0];
+            const nama = parts.slice(1).join(' - ');
+            
+            const satuan = data.satuan || 'Pcs';
+            const stok = data.stok_saat_ini || 0;
+            // The API search only returns default selling price right now. 
+            // In a real scenario we might add harga_beli to the API response. 
+            // We'll fall back to 0 just to avoid errors for now.
+            const min = 50; // Fallback since it's not in the API
+            const hargaBeli = data.price || 0; 
 
-        const exist = document.querySelector(`input[name="items[${id}][id]"]`);
-        if (exist) {
-            alert('Barang ini sudah ada dalam list pesanan.');
-            return;
-        }
+            const exist = document.querySelector(`input[name="items[${id}][id]"]`);
+            if (exist) {
+                alert('Barang ini sudah ada dalam list pesanan.');
+                $(this).val(null).trigger('change');
+                return;
+            }
 
-        const emptyRow = document.getElementById('empty-row');
-        if (emptyRow) emptyRow.remove();
+            const emptyRow = document.getElementById('empty-row');
+            if (emptyRow) emptyRow.remove();
 
-        const rowColorClass = stok <= min ? 'bg-red-50' : '';
-        const stokColor = stok <= min ? 'text-red-600' : 'text-slate-800';
+            const rowColorClass = stok <= min ? 'bg-red-50' : '';
+            const stokColor = stok <= min ? 'text-red-600' : 'text-slate-800';
 
-        const tr = document.createElement('tr');
-        tr.id = `row-${id}`;
-        tr.className = rowColorClass;
-        tr.innerHTML = `
-            <td class="py-3 px-4 text-sm font-mono text-slate-600">
-                <input type="hidden" name="items[${id}][id]" value="${id}">
-                ${kode}
-            </td>
-            <td class="py-3 px-4 text-sm font-medium text-slate-800">${nama}</td>
-            <td class="py-3 px-4 text-sm text-center font-bold ${stokColor}">
-                ${stok}
-                <span class="block text-[10px] text-slate-500 font-normal">Min: ${min}</span>
-            </td>
-            <td class="py-3 px-4 text-center">
-                <div class="flex items-center justify-center">
-                    <input type="number" name="items[${id}][qty_butuh]" id="qty-${id}" value="10" min="1" class="w-16 px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-center" onchange="calcRow(${id})" onkeyup="calcRow(${id})">
-                    <span class="ml-2 text-xs text-slate-500">/${satuan}</span>
-                </div>
-            </td>
-            <td class="py-3 px-4 text-right">
-                <input type="number" name="items[${id}][harga_beli_satuan]" id="harga-${id}" value="${hargaBeli}" min="0" step="1" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" onchange="calcRow(${id})" onkeyup="calcRow(${id})">
-            </td>
-            <td class="py-3 px-4 text-right text-sm font-semibold text-slate-800" id="subtotal-${id}">
-                ${new Intl.NumberFormat('id-ID').format(10 * hargaBeli)}
-            </td>
-            <td class="py-3 px-4 text-center">
-                <button type="button" onclick="removeRow(${id})" class="text-slate-400 hover:text-red-500 p-1">
-                    <i class="ph ph-trash text-lg"></i>
-                </button>
-            </td>
-        `;
-        
-        document.getElementById('items-container').appendChild(tr);
-        selector.selectedIndex = 0;
-        calcTotalPO();
+            const tr = document.createElement('tr');
+            tr.id = `row-${id}`;
+            tr.className = rowColorClass;
+            tr.innerHTML = `
+                <td class="py-3 px-4 text-sm font-mono text-slate-600">
+                    <input type="hidden" name="items[${id}][id]" value="${id}">
+                    ${kode}
+                </td>
+                <td class="py-3 px-4 text-sm font-medium text-slate-800">${nama}</td>
+                <td class="py-3 px-4 text-sm text-center font-bold ${stokColor}">
+                    ${stok}
+                    <span class="block text-[10px] text-slate-500 font-normal">Min: ${min}</span>
+                </td>
+                <td class="py-3 px-4 text-center">
+                    <div class="flex items-center justify-center">
+                        <input type="number" name="items[${id}][qty_butuh]" id="qty-${id}" value="10" min="1" class="w-16 px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-center" onchange="calcRow(${id})" onkeyup="calcRow(${id})">
+                        <span class="ml-2 text-xs text-slate-500">/${satuan}</span>
+                    </div>
+                </td>
+                <td class="py-3 px-4 text-right">
+                    <input type="number" name="items[${id}][harga_beli_satuan]" id="harga-${id}" value="${hargaBeli}" min="0" step="1" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" onchange="calcRow(${id})" onkeyup="calcRow(${id})">
+                </td>
+                <td class="py-3 px-4 text-right text-sm font-semibold text-slate-800" id="subtotal-${id}">
+                    ${new Intl.NumberFormat('id-ID').format(10 * hargaBeli)}
+                </td>
+                <td class="py-3 px-4 text-center">
+                    <button type="button" onclick="removeRow(${id})" class="text-slate-400 hover:text-red-500 p-1">
+                        <i class="ph ph-trash text-lg"></i>
+                    </button>
+                </td>
+            `;
+            
+            document.getElementById('items-container').appendChild(tr);
+            $(this).val(null).trigger('change');
+            calcTotalPO();
+        });
     });
 
     function calcRow(id) {

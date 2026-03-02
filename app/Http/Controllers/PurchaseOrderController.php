@@ -23,7 +23,8 @@ class PurchaseOrderController extends Controller
     public function create(Request $request)
     {
         $suppliers = Supplier::orderBy('nama_supplier')->get();
-        $items = Item::orderBy('nama_barang')->get();
+        // Item fetching array is removed because we now use AJAX Server-Side Rendering via Select2
+        $items = []; 
         
         // Auto-generate PO logic based on minimum stock
         $autoItems = [];
