@@ -237,19 +237,95 @@
         // Prevent default / normal submit
         const customerField = document.getElementById('customer_id').value;
         if (!customerField) {
-            alert('Silakan pilih Customer/Klien.');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Data Belum Lengkap',
+                text: 'Silakan pilih Customer/Klien.'
+            });
             return;
         }
 
         const rows = document.getElementById('items-container').querySelectorAll('tr[id^="row-"]');
         if (rows.length === 0) {
-            alert('Silakan tambahkan minimal 1 barang ke dalam pesanan.');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Keranjang Kosong',
+                text: 'Silakan tambahkan minimal 1 barang ke dalam pesanan.'
+            });
             return;
         }
         
-        if (confirm('Apakah Anda yakin transaksi ini sudah benar? Aksi ini akan otomatis memotong stok gudang.')) {
-            document.getElementById('soForm').submit();
-        }
+        Swal.fire({
+            title: 'Proses Transaksi?',
+            text: "Apakah Anda yakin data transaksi pesanan ini sudah benar?",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#0ea5e9',
+            cancelButtonColor: '#ef4444',
+            confirmButtonText: 'Ya, Proses!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = document.getElementById('soForm');
+                const formData = new FormData(form);
+                
+                Swal.fire({
+                    title: 'Memproses...',
+                    text: 'Mohon tunggu sebentar',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading()
+                    }
+                });
+
+                fetch("{{ route('sales-orders.store') }}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json' // Memaksa Laravel merespon HTTP 422 JSON jika gagal validasi
+                    },
+                    body: formData
+                })
+                .then(async response => {
+                    if (!response.ok) {
+                        if (response.status === 422) {
+                            // Tangkap JSON error otomatis dari Laravel FormRequest
+                            const data = await response.json();
+                            let errorHtml = '<ul class="text-left text-sm text-red-600 list-disc pl-4">';
+                            for (const [key, messages] of Object.entries(data.errors)) {
+                                messages.forEach(msg => {
+                                    // Customizing the hard-to-read "items.0.qty" messages
+                                    let cleanMsg = msg.replace(/items\.\d+\./g, 'Baris Barang ');
+                                    errorHtml += `<li>${cleanMsg}</li>`;
+                                });
+                            }
+                            errorHtml += '</ul>';
+                            
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Validasi Gagal!',
+                                html: errorHtml
+                            });
+                            throw new Error('Validation Failed');
+                        }
+                        throw new Error('Network response was not ok');
+                    }
+                    
+                    // Sukses (Follow Redirect)
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                    } else {
+                        window.location.href = "{{ route('sales-orders.index') }}"; 
+                    }
+                })
+                .catch(error => {
+                    if(error.message !== 'Validation Failed') {
+                        Swal.fire('Error System', 'Terjadi kesalahan pada koneksi atau server.', 'error');
+                        console.error(error);
+                    }
+                });
+            }
+        });
     }
 </script>
 @endsection

@@ -267,17 +267,92 @@
 
     function validateAndSubmit() {
         if (!document.getElementById('supplier_id').value) {
-            alert('Pilih Supplier terlebih dahulu.');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Data Belum Lengkap',
+                text: 'Silakan pilih Supplier/Pabrik.'
+            });
             return;
         }
 
         const rows = document.getElementById('items-container').querySelectorAll('tr[id^="row-"]');
         if (rows.length === 0) {
-            alert('Data barang yang mau diorder masih kosong.');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Keranjang Kosong',
+                text: 'Data barang yang mau diorder masih kosong.'
+            });
             return;
         }
+        
+        Swal.fire({
+            title: 'Terbitkan PO?',
+            text: "Apakah Anda yakin daftar pemesanan order barang ini sudah benar?",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#0ea5e9',
+            cancelButtonColor: '#ef4444',
+            confirmButtonText: 'Ya, Terbitkan!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = document.getElementById('poForm');
+                const formData = new FormData(form);
+                
+                Swal.fire({
+                    title: 'Memproses...',
+                    text: 'Mohon tunggu sebentar',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading()
+                    }
+                });
 
-        document.getElementById('poForm').submit();
+                fetch("{{ route('purchase-orders.store') }}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json' 
+                    },
+                    body: formData
+                })
+                .then(async response => {
+                    if (!response.ok) {
+                        if (response.status === 422) {
+                            const data = await response.json();
+                            let errorHtml = '<ul class="text-left text-sm text-red-600 list-disc pl-4">';
+                            for (const [key, messages] of Object.entries(data.errors)) {
+                                messages.forEach(msg => {
+                                    let cleanMsg = msg.replace(/items\.\d+\./g, 'Baris Barang ');
+                                    errorHtml += `<li>${cleanMsg}</li>`;
+                                });
+                            }
+                            errorHtml += '</ul>';
+                            
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Validasi Gagal!',
+                                html: errorHtml
+                            });
+                            throw new Error('Validation Failed');
+                        }
+                        throw new Error('Network response was not ok');
+                    }
+                    
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                    } else {
+                        window.location.href = "{{ route('purchase-orders.index') }}"; 
+                    }
+                })
+                .catch(error => {
+                    if(error.message !== 'Validation Failed') {
+                        Swal.fire('Error System', 'Terjadi kesalahan pada koneksi atau server.', 'error');
+                        console.error(error);
+                    }
+                });
+            }
+        });
     }
 </script>
 @endsection
