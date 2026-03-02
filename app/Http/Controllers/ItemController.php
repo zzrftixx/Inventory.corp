@@ -70,4 +70,32 @@ class ItemController extends Controller
         $item->delete();
         return redirect()->route('items.index')->with('success', 'Barang berhasil dihapus.');
     }
+
+    // Backend API Logic for Select2 AJAX Autocomplete
+    public function searchAjax(Request $request)
+    {
+        $search = $request->input('q');
+
+        // Jika user belum ngetik apa-apa, kembalikan array kosong agar server tidak kerja keras
+        if (empty($search)) {
+            return response()->json([]);
+        }
+
+        // Eksekusi pencarian dengan limit 20
+        $items = Item::where('kode_barang', 'LIKE', "%{$search}%")
+            ->orWhere('nama_barang', 'LIKE', "%{$search}%")
+            ->limit(20)
+            ->get(['id', 'kode_barang', 'nama_barang', 'harga_jual_default']);
+
+        // Format data agar bisa dibaca langsung oleh library Select2
+        $formattedItems = $items->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'text' => $item->kode_barang . ' - ' . $item->nama_barang,
+                'price' => $item->harga_jual_default
+            ];
+        });
+
+        return response()->json($formattedItems);
+    }
 }
