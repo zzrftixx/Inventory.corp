@@ -100,7 +100,7 @@
                                     </div>
                                 </td>
                                 <td class="py-3 px-4 text-right">
-                                    <input type="number" name="items[{{ $auto->id }}][harga_beli_satuan]" id="harga-{{ $auto->id }}" value="{{ $auto->harga_beli_rata_rata }}" min="0" step="1" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" onchange="calcRow({{ $auto->id }})" onkeyup="calcRow({{ $auto->id }})">
+                                    <input type="text" inputmode="numeric" name="items[{{ $auto->id }}][harga_beli_satuan]" id="harga-{{ $auto->id }}" value="{{ $auto->harga_beli_rata_rata }}" class="input-rupiah w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" oninput="formatRupiah(this); calcRow({{ $auto->id }})">
                                 </td>
                                 <td class="py-3 px-4 text-right text-sm font-semibold text-slate-800" id="subtotal-{{ $auto->id }}">
                                     {{ number_format($recOrder * $auto->harga_beli_rata_rata, 0, ',', '.') }}
@@ -138,6 +138,15 @@
 </div>
 
 <script>
+    function formatRupiah(obj) {
+        let val = obj.value.replace(/[^0-9]/g, '');
+        if(val !== '') {
+            obj.value = new Intl.NumberFormat('id-ID').format(parseInt(val, 10));
+        } else {
+            obj.value = '';
+        }
+    }
+
     $(document).ready(function() {
         $('#item_selector').select2({
             placeholder: '-- Ketik/Pilih Barang --',
@@ -210,7 +219,7 @@
                     </div>
                 </td>
                 <td class="py-3 px-4 text-right">
-                    <input type="number" name="items[${id}][harga_beli_satuan]" id="harga-${id}" value="${hargaBeli}" min="0" step="1" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" onchange="calcRow(${id})" onkeyup="calcRow(${id})">
+                    <input type="text" inputmode="numeric" name="items[${id}][harga_beli_satuan]" id="harga-${id}" value="${hargaBeli}" class="input-rupiah w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" oninput="formatRupiah(this); calcRow(${id})">
                 </td>
                 <td class="py-3 px-4 text-right text-sm font-semibold text-slate-800" id="subtotal-${id}">
                     ${new Intl.NumberFormat('id-ID').format(10 * hargaBeli)}
@@ -229,7 +238,8 @@
     });
 
     function calcRow(id) {
-        let harga = parseFloat(document.getElementById(`harga-${id}`).value) || 0;
+        let hargaStr = document.getElementById(`harga-${id}`).value.replace(/\./g, '');
+        let harga = parseFloat(hargaStr) || 0;
         let qty = parseFloat(document.getElementById(`qty-${id}`).value) || 0;
         let subtotal = harga * qty;
         document.getElementById(`subtotal-${id}`).innerText = new Intl.NumberFormat('id-ID').format(subtotal);
@@ -241,7 +251,8 @@
         const rows = document.getElementById('items-container').querySelectorAll('tr[id^="row-"]');
         rows.forEach(row => {
             const id = row.id.split('-')[1];
-            let harga = parseFloat(document.getElementById(`harga-${id}`).value) || 0;
+            let hargaStr = document.getElementById(`harga-${id}`).value.replace(/\./g, '');
+            let harga = parseFloat(hargaStr) || 0;
             let qty = parseFloat(document.getElementById(`qty-${id}`).value) || 0;
             total += (harga * qty);
         });
@@ -297,6 +308,18 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 const form = document.getElementById('poForm');
+                const btn = document.querySelector('button[onclick="validateAndSubmit()"]');
+                let originalText = '';
+                if(btn) {
+                    originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Memproses...';
+                }
+
+                document.querySelectorAll('.input-rupiah').forEach(function(input) {
+                    input.value = input.value.replace(/\./g, '');
+                });
+
                 const formData = new FormData(form);
                 
                 Swal.fire({
@@ -350,6 +373,17 @@
                         Swal.fire('Error System', 'Terjadi kesalahan pada koneksi atau server.', 'error');
                         console.error(error);
                     }
+                })
+                .finally(() => {
+                    if(btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                    document.querySelectorAll('.input-rupiah').forEach(function(input) {
+                        if(input.value) {
+                            input.value = new Intl.NumberFormat('id-ID').format(parseInt(input.value, 10));
+                        }
+                    });
                 });
             }
         });

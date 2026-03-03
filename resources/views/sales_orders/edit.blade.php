@@ -221,12 +221,17 @@
         const maxStok = parseFloat(qtyInput.getAttribute('max'));
         
         if (qty > maxStok) {
-            alert('Qty melebihi stok yang tersedia!');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Stok Tidak Cukup',
+                text: 'Qty melebihi stok yang tersedia!'
+            });
             qtyInput.value = maxStok;
             qty = maxStok;
         }
 
-        let diskon = parseFloat(document.getElementById(`diskon-${id}`).value) || 0;
+        let diskonStr = document.getElementById(`diskon-${id}`).value.replace(/\./g, '');
+        let diskon = parseFloat(diskonStr) || 0;
 
         const subtotal = (harga * qty) - diskon;
         document.getElementById(`subtotal-${id}`).innerText = new Intl.NumberFormat('id-ID').format(subtotal > 0 ? subtotal : 0);
@@ -240,7 +245,8 @@
             const id = row.id.split('-')[1];
             const harga = parseFloat(document.getElementById(`harga-${id}`).value) || 0;
             const qty = parseFloat(document.getElementById(`qty-${id}`).value) || 0;
-            const diskon = parseFloat(document.getElementById(`diskon-${id}`).value) || 0;
+            const diskonStr = document.getElementById(`diskon-${id}`).value.replace(/\./g, '');
+            const diskon = parseFloat(diskonStr) || 0;
             const subtotal = (harga * qty) - diskon;
             if(subtotal > 0) total += subtotal;
         });

@@ -163,7 +163,7 @@
                     </div>
                 </td>
                 <td class="py-3 px-4">
-                    <input type="number" name="items[${id}][diskon]" id="diskon-${id}" value="0" min="0" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" onchange="calculateRow(${id})" onkeyup="calculateRow(${id})">
+                    <input type="text" inputmode="numeric" name="items[${id}][diskon]" id="diskon-${id}" value="0" class="input-rupiah w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" onkeyup="formatRupiah(this); calculateRow(${id})">
                 </td>
                 <td class="py-3 px-4 text-sm font-semibold text-slate-700 text-right" id="subtotal-${id}">
                     ${new Intl.NumberFormat('id-ID').format(harga)}
@@ -191,12 +191,17 @@
         const maxStok = parseFloat(qtyInput.getAttribute('max'));
         
         if (qty > maxStok) {
-            alert('Qty melebihi stok yang tersedia!');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Stok Tidak Cukup',
+                text: 'Qty melebihi stok yang tersedia!'
+            });
             qtyInput.value = maxStok;
             qty = maxStok;
         }
 
-        let diskon = parseFloat(document.getElementById(`diskon-${id}`).value) || 0;
+        let diskonStr = document.getElementById(`diskon-${id}`).value.replace(/\./g, '');
+        let diskon = parseFloat(diskonStr) || 0;
 
         const subtotal = (harga * qty) - diskon;
         document.getElementById(`subtotal-${id}`).innerText = new Intl.NumberFormat('id-ID').format(subtotal > 0 ? subtotal : 0);
@@ -208,9 +213,11 @@
         const rows = document.getElementById('items-container').querySelectorAll('tr[id^="row-"]');
         rows.forEach(row => {
             const id = row.id.split('-')[1];
-            const harga = parseFloat(document.getElementById(`harga-${id}`).value) || 0;
+            const hargaStr = document.getElementById(`harga-${id}`).value;
+            const harga = parseFloat(hargaStr) || 0;
             const qty = parseFloat(document.getElementById(`qty-${id}`).value) || 0;
-            const diskon = parseFloat(document.getElementById(`diskon-${id}`).value) || 0;
+            const diskonStr = document.getElementById(`diskon-${id}`).value.replace(/\./g, '');
+            const diskon = parseFloat(diskonStr) || 0;
             const subtotal = (harga * qty) - diskon;
             if(subtotal > 0) total += subtotal;
         });
@@ -267,6 +274,18 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 const form = document.getElementById('soForm');
+                const btn = document.getElementById('btnSubmit');
+                const originalText = btn.innerHTML;
+                if(btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Memproses...';
+                }
+
+                // Sweeping DOM: Lucuti titik uang sedetik sebelum formData dibuat!
+                document.querySelectorAll('.input-rupiah').forEach(function(input) {
+                    input.value = input.value.replace(/\./g, '');
+                });
+
                 const formData = new FormData(form);
                 
                 Swal.fire({
@@ -323,6 +342,19 @@
                         Swal.fire('Error System', 'Terjadi kesalahan pada koneksi atau server.', 'error');
                         console.error(error);
                     }
+                })
+                .finally(() => {
+                    // Kembalikan tombol anti-tremor
+                    if(btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                    // Kembalikan format rupiah yang tadi sempat dilucuti di UI
+                    document.querySelectorAll('.input-rupiah').forEach(function(input) {
+                        if(input.value) {
+                            input.value = new Intl.NumberFormat('id-ID').format(parseInt(input.value, 10));
+                        }
+                    });
                 });
             }
         });
