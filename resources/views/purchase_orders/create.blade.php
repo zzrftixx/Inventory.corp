@@ -148,6 +148,12 @@
     }
 
     $(document).ready(function() {
+        document.querySelectorAll('.input-rupiah').forEach(function(input) {
+            if (input.value !== "0" && input.value !== "") {
+                formatRupiah(input);
+            }
+        });
+        
         $('#item_selector').select2({
             placeholder: '-- Ketik/Pilih Barang --',
             ajax: {

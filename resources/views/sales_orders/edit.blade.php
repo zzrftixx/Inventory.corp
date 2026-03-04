@@ -123,9 +123,23 @@
 </div>
 
 <script>
+    function formatRupiah(obj) {
+        let val = obj.value.replace(/[^0-9]/g, '');
+        if(val !== '') {
+            obj.value = new Intl.NumberFormat('id-ID').format(parseInt(val, 10));
+        } else {
+            obj.value = '';
+        }
+    }
+
     let itemIndex = 0; // We keep it, though not strictly needed here for IDs if using DB ID
     
     $(document).ready(function() {
+        document.querySelectorAll('.input-rupiah').forEach(function(input) {
+            if (input.value !== "0" && input.value !== "") {
+                formatRupiah(input);
+            }
+        });
         $('#item_selector').select2({
             placeholder: '-- Ketik/Pilih Barang --',
             ajax: {
