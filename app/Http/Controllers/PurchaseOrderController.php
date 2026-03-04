@@ -24,8 +24,8 @@ class PurchaseOrderController extends Controller
     {
         $suppliers = Supplier::orderBy('nama_supplier')->get();
         // Item fetching array is removed because we now use AJAX Server-Side Rendering via Select2
-        $items = []; 
-        
+        $items = [];
+
         // Auto-generate PO logic based on minimum stock
         $autoItems = [];
         if ($request->has('auto')) {
@@ -52,7 +52,7 @@ class PurchaseOrderController extends Controller
             // 1. Generate No PO
             $datePrefix = Carbon::parse($request->tanggal_po)->format('Ymd');
             $lastOrder = PurchaseOrder::whereDate('tanggal_po', $request->tanggal_po)->orderBy('id', 'desc')->first();
-            $sequence = $lastOrder ? (int)substr($lastOrder->no_po, -4) + 1 : 1;
+            $sequence = $lastOrder ? (int) substr($lastOrder->no_po, -4) + 1 : 1;
             $noPo = 'PO-' . $datePrefix . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
 
             // 2. Create Header
@@ -71,14 +71,32 @@ class PurchaseOrderController extends Controller
                 $subtotal = $itemData['qty_butuh'] * $itemData['harga_beli_satuan'];
                 $total_po += $subtotal;
 
+                $item = Item::findOrFail($itemData['id']);
+                $metadata = null;
+                $harga_modal_real = $itemData['harga_beli_satuan'];
+
+                if ($item->is_aluminium) {
+                    $harga_modal_real = $item->berat_profil_kg * $item->panjang_meter * $item->harga_dasar_aluminium_kg;
+
+                    $metadata = json_encode([
+                        'is_aluminium' => true,
+                        'berat_kg' => $item->berat_profil_kg,
+                        'panjang_m' => $item->panjang_meter,
+                        'harga_dasar_kg' => $item->harga_dasar_aluminium_kg,
+                        'modal_beku' => $harga_modal_real,
+                        'rumus' => "{$item->berat_profil_kg} kg x {$item->panjang_meter} m x Rp " . number_format($item->harga_dasar_aluminium_kg, 0, ',', '.')
+                    ]);
+                }
+
                 PurchaseOrderDetail::create([
                     'purchase_order_id' => $purchaseOrder->id,
                     'item_id' => $itemData['id'],
                     'qty_butuh' => $itemData['qty_butuh'],
-                    'harga_beli_satuan' => $itemData['harga_beli_satuan']
+                    'harga_beli_satuan' => $itemData['harga_beli_satuan'],
+                    'metadata_kalkulasi' => $metadata
                 ]);
             }
-            
+
             $purchaseOrder->update(['total_amount_po' => $total_po]);
 
             DB::commit();
@@ -114,7 +132,7 @@ class PurchaseOrderController extends Controller
                     $old_avg = $item->harga_beli_rata_rata;
                     $new_qty = $detail->qty_butuh;
                     $new_price = $detail->harga_beli_satuan;
-                    
+
                     $total_stok = $old_stok + $new_qty;
                     if ($total_stok > 0) {
                         $new_avg = (($old_stok * $old_avg) + ($new_qty * $new_price)) / $total_stok;
@@ -167,7 +185,7 @@ class PurchaseOrderController extends Controller
             $purchaseOrder->details()->delete();
             $purchaseOrder->delete();
             DB::commit();
-            
+
             return redirect()->route('purchase-orders.index')->with('success', 'Purchase Order berhasil dibatalkan/dihapus.');
         } catch (\Exception $e) {
             DB::rollBack();
