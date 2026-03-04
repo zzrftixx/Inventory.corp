@@ -82,7 +82,7 @@
 
         <div class="flex justify-end p-6 border-t border-slate-100 bg-slate-50 space-x-3">
             <a href="{{ route('sales-orders.index') }}" class="px-5 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">Batal</a>
-            <button type="button" onclick="validateAndSubmit()" class="px-6 py-2.5 text-sm font-bold text-white bg-primary hover:bg-sky-600 rounded-lg transition-colors shadow-sm">
+            <button type="button" id="btnSubmit" onclick="validateAndSubmit()" class="px-6 py-2.5 text-sm font-bold text-white bg-primary hover:bg-sky-600 rounded-lg transition-colors shadow-sm">
                 Proses Transaksi & Generate Surat
             </button>
         </div>
@@ -161,6 +161,7 @@
                         <input type="number" name="items[${id}][qty]" id="qty-${id}" value="1" min="1" max="${stok}" class="w-16 px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-center" onchange="calculateRow(${id})" onkeyup="calculateRow(${id})">
                         <span class="ml-2 text-xs text-slate-500">/${satuan}</span>
                     </div>
+                    <div class="text-[10px] text-slate-400 mt-1">Max: ${stok}</div>
                 </td>
                 <td class="py-3 px-4">
                     <input type="text" inputmode="numeric" name="items[${id}][diskon]" id="diskon-${id}" value="0" class="input-rupiah w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" onkeyup="formatRupiah(this); calculateRow(${id})">

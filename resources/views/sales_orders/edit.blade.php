@@ -86,7 +86,7 @@
                                 <div class="text-[10px] text-slate-400 mt-1">Max: {{ $detail->item->stok_saat_ini }}</div>
                             </td>
                             <td class="py-3 px-4">
-                                <input type="number" name="items[{{ $detail->item_id }}][diskon]" id="diskon-{{ $detail->item_id }}" value="{{ $detail->diskon }}" min="0" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" onchange="calculateRow({{ $detail->item_id }})" onkeyup="calculateRow({{ $detail->item_id }})">
+                                <input type="text" inputmode="numeric" name="items[{{ $detail->item_id }}][diskon]" id="diskon-{{ $detail->item_id }}" value="{{ $detail->diskon }}" class="input-rupiah w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" onkeyup="formatRupiah(this); calculateRow({{ $detail->item_id }})">
                             </td>
                             <td class="py-3 px-4 text-sm font-semibold text-slate-700 text-right" id="subtotal-{{ $detail->item_id }}">
                                 {{ number_format($detail->subtotal_netto, 0, ',', '.') }}
