@@ -23,6 +23,12 @@ class ItemController extends Controller
 
     public function store(Request $request)
     {
+        // Bersihkan dot formatting dari input currency sebelum validasi
+        $request->merge([
+            'harga_jual_default' => str_replace('.', '', $request->harga_jual_default),
+            'harga_dasar_aluminium_kg' => $request->has('harga_dasar_aluminium_kg') ? str_replace('.', '', $request->harga_dasar_aluminium_kg) : null,
+        ]);
+
         $rules = [
             'kode_barang' => 'required|string|unique:items,kode_barang|max:255',
             'nama_barang' => 'required|string|max:255',
@@ -52,6 +58,12 @@ class ItemController extends Controller
 
     public function update(Request $request, Item $item)
     {
+        // Bersihkan dot formatting dari input currency sebelum validasi
+        $request->merge([
+            'harga_jual_default' => str_replace('.', '', $request->harga_jual_default),
+            'harga_dasar_aluminium_kg' => $request->has('harga_dasar_aluminium_kg') ? str_replace('.', '', $request->harga_dasar_aluminium_kg) : null,
+        ]);
+
         $rules = [
             'kode_barang' => 'required|string|max:255|unique:items,kode_barang,' . $item->id,
             'nama_barang' => 'required|string|max:255',
