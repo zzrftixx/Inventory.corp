@@ -23,8 +23,8 @@ class SalesOrderController extends Controller
     public function create()
     {
         $customers = Customer::orderBy('nama')->get();
-        // Load items that have stock > 0
-        $items = Item::where('stok_saat_ini', '>', 0)->orderBy('nama_barang')->get();
+        // Item fetching array is removed because we now use AJAX Server-Side Rendering via Select2
+        $items = [];
         return view('sales_orders.create', compact('customers', 'items'));
     }
 
@@ -44,14 +44,14 @@ class SalesOrderController extends Controller
 
             $datePrefix = Carbon::parse($request->tanggal_transaksi)->format('Ymd');
             $lastOrder = SalesOrder::whereDate('tanggal_transaksi', $request->tanggal_transaksi)->orderBy('id', 'desc')->first();
-            $sequence = $lastOrder ? (int)substr($lastOrder->no_faktur, -4) + 1 : 1;
+            $sequence = $lastOrder ? (int) substr($lastOrder->no_faktur, -4) + 1 : 1;
             $noFaktur = 'INV-' . $datePrefix . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
 
             $salesOrder = SalesOrder::create([
                 'no_faktur' => $noFaktur,
                 'tanggal_transaksi' => $request->tanggal_transaksi,
                 'customer_id' => $request->customer_id,
-                'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1), 
+                'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
                 'total_invoice' => 0,
                 'status' => 'Draft' // Now starts as DRAFT
             ]);
@@ -60,16 +60,29 @@ class SalesOrderController extends Controller
 
             foreach ($request->items as $itemData) {
                 $item = Item::findOrFail($itemData['id']);
-                
+
                 $qty = $itemData['qty'];
                 $diskon = $itemData['diskon'] ?? 0;
-                
-                // We still check if they request impossible amount
-                // but we DO NOT deduct stock here.
-                // It is a draft. However, if stock is not enough for draft, it might be annoying later.
-                // We'll just warn or let it pass for now. Assuming draft ignores stock limits until submitted.
-
                 $hargaSatuan = $item->harga_jual_default;
+
+                $metadata = null;
+                $harga_modal_real = $item->harga_beli_rata_rata;
+
+                if ($item->is_aluminium) {
+                    // Harga modal per batang = berat_profil_kg * panjang_meter * harga_dasar_aluminium_kg
+                    $harga_modal_real = $item->berat_profil_kg * $item->panjang_meter * $item->harga_dasar_aluminium_kg;
+
+                    // Bekukan semua parameter saat detik transaksi terjadi
+                    $metadata = json_encode([
+                        'is_aluminium' => true,
+                        'berat_kg' => $item->berat_profil_kg,
+                        'panjang_m' => $item->panjang_meter,
+                        'harga_dasar_kg' => $item->harga_dasar_aluminium_kg,
+                        'modal_beku' => $harga_modal_real,
+                        'rumus' => "{$item->berat_profil_kg} kg x {$item->panjang_meter} m x Rp " . number_format($item->harga_dasar_aluminium_kg, 0, ',', '.')
+                    ]);
+                }
+
                 $subtotalNetto = ($hargaSatuan * $qty) - $diskon;
                 $totalInvoice += $subtotalNetto;
 
@@ -77,10 +90,11 @@ class SalesOrderController extends Controller
                     'sales_order_id' => $salesOrder->id,
                     'item_id' => $item->id,
                     'qty' => $qty,
-                    'harga_modal_saat_transaksi' => $item->harga_beli_rata_rata,
+                    'harga_modal_saat_transaksi' => $harga_modal_real,
                     'harga_satuan_saat_transaksi' => $hargaSatuan,
                     'diskon' => $diskon,
-                    'subtotal_netto' => $subtotalNetto
+                    'subtotal_netto' => $subtotalNetto,
+                    'metadata_kalkulasi' => $metadata
                 ]);
             }
 
@@ -127,7 +141,7 @@ class SalesOrderController extends Controller
 
             foreach ($sales_order->details as $detail) {
                 $item = Item::lockForUpdate()->find($detail->item_id);
-                
+
                 if (!$item || $item->stok_saat_ini < $detail->qty) {
                     $available = $item ? $item->stok_saat_ini : 0;
                     throw new \Exception("Stok tidak memadai untuk {$item->nama_barang}. Butuh {$detail->qty}, Tersedia {$available}");
@@ -168,9 +182,10 @@ class SalesOrderController extends Controller
         }
 
         $customers = Customer::orderBy('nama')->get();
-        $items = Item::where('stok_saat_ini', '>', 0)->orderBy('nama_barang')->get();
+        // Item fetching array is removed because we now use AJAX Server-Side Rendering via Select2
+        $items = [];
         $salesOrder->load('details.item');
-        
+
         return view('sales_orders.edit', compact('salesOrder', 'customers', 'items'));
     }
 
@@ -202,11 +217,27 @@ class SalesOrderController extends Controller
             $totalInvoice = 0;
             foreach ($request->items as $itemData) {
                 $item = Item::findOrFail($itemData['id']);
-                
+
                 $qty = $itemData['qty'];
                 $diskon = $itemData['diskon'] ?? 0;
-                
                 $hargaSatuan = $item->harga_jual_default;
+
+                $metadata = null;
+                $harga_modal_real = $item->harga_beli_rata_rata;
+
+                if ($item->is_aluminium) {
+                    $harga_modal_real = $item->berat_profil_kg * $item->panjang_meter * $item->harga_dasar_aluminium_kg;
+
+                    $metadata = json_encode([
+                        'is_aluminium' => true,
+                        'berat_kg' => $item->berat_profil_kg,
+                        'panjang_m' => $item->panjang_meter,
+                        'harga_dasar_kg' => $item->harga_dasar_aluminium_kg,
+                        'modal_beku' => $harga_modal_real,
+                        'rumus' => "{$item->berat_profil_kg} kg x {$item->panjang_meter} m x Rp " . number_format($item->harga_dasar_aluminium_kg, 0, ',', '.')
+                    ]);
+                }
+
                 $subtotalNetto = ($hargaSatuan * $qty) - $diskon;
                 $totalInvoice += $subtotalNetto;
 
@@ -214,10 +245,11 @@ class SalesOrderController extends Controller
                     'sales_order_id' => $salesOrder->id,
                     'item_id' => $item->id,
                     'qty' => $qty,
-                    'harga_modal_saat_transaksi' => $item->harga_beli_rata_rata,
+                    'harga_modal_saat_transaksi' => $harga_modal_real,
                     'harga_satuan_saat_transaksi' => $hargaSatuan,
                     'diskon' => $diskon,
-                    'subtotal_netto' => $subtotalNetto
+                    'subtotal_netto' => $subtotalNetto,
+                    'metadata_kalkulasi' => $metadata
                 ]);
             }
 
@@ -232,12 +264,12 @@ class SalesOrderController extends Controller
             return back()->withInput()->with('error', 'Gagal update draft: ' . $e->getMessage());
         }
     }
-    
+
     public function destroy(SalesOrder $salesOrder)
     {
         try {
             DB::beginTransaction();
-            
+
             if ($salesOrder->status == 'Batal') {
                 throw new \Exception('Transaksi sudah dibatalkan sebelumnya.');
             }
@@ -270,9 +302,9 @@ class SalesOrderController extends Controller
             }
 
             $salesOrder->update(['status' => 'Batal']);
-            
+
             DB::commit();
-            
+
             return redirect()->route('sales-orders.index')->with('success', 'Transaksi berhasil di-VOID (Retur) dan stok gudang sudah dikembalikan otomatis.');
         } catch (\Exception $e) {
             DB::rollBack();

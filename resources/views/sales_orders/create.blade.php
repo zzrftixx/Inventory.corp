@@ -41,21 +41,12 @@
         <div class="p-6 border-t border-slate-100">
             <h3 class="text-md font-semibold text-slate-800 mb-4">Detail Barang</h3>
             
-            <div class="flex space-x-3 mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200 items-end">
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Pilih Barang</label>
-                    <select id="item_selector" class="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none bg-white">
-                        <option value="">-- Ketik/Pilih Barang --</option>
-                        @foreach($items as $item)
-                            <option value="{{ $item->id }}" data-kode="{{ $item->kode_barang }}" data-nama="{{ $item->nama_barang }}" data-harga="{{ $item->harga_jual_default }}" data-satuan="{{ $item->satuan }}" data-stok="{{ $item->stok_saat_ini }}">
-                                {{ $item->kode_barang }} - {{ $item->nama_barang }} (Stok: {{ $item->stok_saat_ini }})
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <button type="button" id="btn-add-item" class="bg-secondary hover:bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center h-[42px]">
-                    <i class="ph ph-plus font-bold mr-2"></i> Tambah
-                </button>
+            <div class="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <label class="block text-sm font-medium text-slate-700 mb-2">Cari & Tambah Barang</label>
+                <!-- Dikosongkan, murni menggunakan AJAX Server-Side Rendering untuk mencegah browser nge-lag -->
+                <select id="item_selector" class="w-full ajax-select2">
+                </select>
+                <p class="text-xs text-slate-500 mt-2"><i class="ph ph-info font-bold"></i> Ketik nama atau kode barang (minimal 1 huruf). Cth: Kusen, ALX, Kaca.</p>
             </div>
 
             <div class="overflow-x-auto rounded-lg border border-slate-200">
@@ -91,7 +82,7 @@
 
         <div class="flex justify-end p-6 border-t border-slate-100 bg-slate-50 space-x-3">
             <a href="{{ route('sales-orders.index') }}" class="px-5 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">Batal</a>
-            <button type="button" onclick="validateAndSubmit()" class="px-6 py-2.5 text-sm font-bold text-white bg-primary hover:bg-sky-600 rounded-lg transition-colors shadow-sm">
+            <button type="button" id="btnSubmit" onclick="validateAndSubmit()" class="px-6 py-2.5 text-sm font-bold text-white bg-primary hover:bg-sky-600 rounded-lg transition-colors shadow-sm">
                 Proses Transaksi & Generate Surat
             </button>
         </div>
@@ -99,73 +90,113 @@
 </div>
 
 <script>
+    function formatRupiah(obj) {
+        let val = obj.value.replace(/[^0-9]/g, '');
+        if(val !== '') {
+            obj.value = new Intl.NumberFormat('id-ID').format(parseInt(val, 10));
+        } else {
+            obj.value = '';
+        }
+    }
+
     let itemIndex = 0;
     
-    document.getElementById('btn-add-item').addEventListener('click', function() {
-        const selector = document.getElementById('item_selector');
-        const selectedOption = selector.options[selector.selectedIndex];
-        
-        if (!selectedOption.value) {
-            alert('Silakan pilih barang terlebih dahulu!');
-            return;
-        }
+    $(document).ready(function() {
+        document.querySelectorAll('.input-rupiah').forEach(function(input) {
+            if (input.value !== "0" && input.value !== "") {
+                formatRupiah(input);
+            }
+        });
+        $('#item_selector').select2({
+            placeholder: '-- Ketik/Pilih Barang --',
+            ajax: {
+                url: '{{ route("items.search") }}',
+                dataType: 'json',
+                delay: 250, // wait 250ms before firing request
+                data: function(params) {
+                    return {
+                        q: params.term || '' // search term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 1
+        });
 
-        const id = selectedOption.value;
-        const kode = selectedOption.getAttribute('data-kode');
-        const nama = selectedOption.getAttribute('data-nama');
-        const harga = parseFloat(selectedOption.getAttribute('data-harga'));
-        const satuan = selectedOption.getAttribute('data-satuan');
-        const stok = parseInt(selectedOption.getAttribute('data-stok'));
+        // Trigger when an item is selected from dropdown
+        $('#item_selector').on('select2:select', function (e) {
+            const data = e.params.data;
+            const id = data.id;
+            
+            // Note: Since we need more details like stok and satuan that are not in the lightweight Select2 JSON,
+            // we have two choices: add them to the API response, or fetch them if they aren't there.
+            // Let's assume we will update the ItemController API to include them next.
+            // For now, mapping from the Select2 data format:
+            const fullName = data.text; // "Kode - Nama"
+            const parts = fullName.split(' - ');
+            const kode = parts[0];
+            const nama = parts.slice(1).join(' - ');
+            
+            const harga = data.price || 0;
+            const stok = data.stok_saat_ini || 1000; // Will update API to supply this real value
+            const satuan = data.satuan || 'Pcs';     // Will update API to supply this real value
 
-        // Cek duplicate
-        const exist = document.querySelector(`input[name="items[${id}][id]"]`);
-        if (exist) {
-            alert('Barang ini sudah ada dalam list, silahkan sesuaikan Qty-nya.');
-            return;
-        }
+            // Cek duplicate
+            const exist = document.querySelector(`input[name="items[${id}][id]"]`);
+            if (exist) {
+                alert('Barang ini sudah ada dalam list, silahkan sesuaikan Qty-nya.');
+                $(this).val(null).trigger('change'); // reset selection
+                return;
+            }
 
-        // Hapus empty state
-        const emptyRow = document.getElementById('empty-row');
-        if (emptyRow) emptyRow.remove();
+            // Hapus empty state
+            const emptyRow = document.getElementById('empty-row');
+            if (emptyRow) emptyRow.remove();
 
-        const tr = document.createElement('tr');
-        tr.id = `row-${id}`;
-        tr.innerHTML = `
-            <td class="py-3 px-4 text-sm font-mono text-slate-600">
-                <input type="hidden" name="items[${id}][id]" value="${id}">
-                ${kode}
-            </td>
-            <td class="py-3 px-4 text-sm font-medium text-slate-800">${nama}</td>
-            <td class="py-3 px-4 text-sm text-right">
-                ${new Intl.NumberFormat('id-ID').format(harga)}
-                <input type="hidden" id="harga-${id}" value="${harga}">
-            </td>
-            <td class="py-3 px-4">
-                <div class="flex items-center">
-                    <input type="number" name="items[${id}][qty]" id="qty-${id}" value="1" min="1" max="${stok}" class="w-16 px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-center" onchange="calculateRow(${id})" onkeyup="calculateRow(${id})">
-                    <span class="ml-2 text-xs text-slate-500">/${satuan}</span>
-                </div>
-                <div class="text-[10px] text-slate-400 mt-1">Max: ${stok}</div>
-            </td>
-            <td class="py-3 px-4">
-                <input type="number" name="items[${id}][diskon]" id="diskon-${id}" value="0" min="0" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" onchange="calculateRow(${id})" onkeyup="calculateRow(${id})">
-            </td>
-            <td class="py-3 px-4 text-sm font-semibold text-slate-700 text-right" id="subtotal-${id}">
-                ${new Intl.NumberFormat('id-ID').format(harga)}
-            </td>
-            <td class="py-3 px-4 text-center">
-                <button type="button" onclick="removeRow(${id})" class="text-slate-400 hover:text-red-500 p-1">
-                    <i class="ph ph-trash text-lg"></i>
-                </button>
-            </td>
-        `;
-        
-        document.getElementById('items-container').appendChild(tr);
-        itemIndex++;
-        calculateTotal();
-        
-        // Reset selector
-        selector.selectedIndex = 0;
+            const tr = document.createElement('tr');
+            tr.id = `row-${id}`;
+            tr.innerHTML = `
+                <td class="py-3 px-4 text-sm font-mono text-slate-600">
+                    <input type="hidden" name="items[${id}][id]" value="${id}">
+                    ${kode}
+                </td>
+                <td class="py-3 px-4 text-sm font-medium text-slate-800">${nama}</td>
+                <td class="py-3 px-4 text-sm text-right">
+                    ${new Intl.NumberFormat('id-ID').format(harga)}
+                    <input type="hidden" id="harga-${id}" value="${harga}">
+                </td>
+                <td class="py-3 px-4">
+                    <div class="flex items-center">
+                        <input type="number" name="items[${id}][qty]" id="qty-${id}" value="1" min="1" max="${stok}" class="w-16 px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-center" onchange="calculateRow(${id})" onkeyup="calculateRow(${id})">
+                        <span class="ml-2 text-xs text-slate-500">/${satuan}</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-1">Max: ${stok}</div>
+                </td>
+                <td class="py-3 px-4">
+                    <input type="text" inputmode="numeric" name="items[${id}][diskon]" id="diskon-${id}" value="0" class="input-rupiah w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-primary text-right" onkeyup="formatRupiah(this); calculateRow(${id})">
+                </td>
+                <td class="py-3 px-4 text-sm font-semibold text-slate-700 text-right" id="subtotal-${id}">
+                    ${new Intl.NumberFormat('id-ID').format(harga)}
+                </td>
+                <td class="py-3 px-4 text-center">
+                    <button type="button" onclick="removeRow(${id})" class="text-slate-400 hover:text-red-500 p-1">
+                        <i class="ph ph-trash text-lg"></i>
+                    </button>
+                </td>
+            `;
+            
+            document.getElementById('items-container').appendChild(tr);
+            itemIndex++;
+            calculateTotal();
+            
+            // Reset selector
+            $(this).val(null).trigger('change');
+        });
     });
 
     function calculateRow(id) {
@@ -175,12 +206,17 @@
         const maxStok = parseFloat(qtyInput.getAttribute('max'));
         
         if (qty > maxStok) {
-            alert('Qty melebihi stok yang tersedia!');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Stok Tidak Cukup',
+                text: 'Qty melebihi stok yang tersedia!'
+            });
             qtyInput.value = maxStok;
             qty = maxStok;
         }
 
-        let diskon = parseFloat(document.getElementById(`diskon-${id}`).value) || 0;
+        let diskonStr = document.getElementById(`diskon-${id}`).value.replace(/\./g, '');
+        let diskon = parseFloat(diskonStr) || 0;
 
         const subtotal = (harga * qty) - diskon;
         document.getElementById(`subtotal-${id}`).innerText = new Intl.NumberFormat('id-ID').format(subtotal > 0 ? subtotal : 0);
@@ -192,9 +228,11 @@
         const rows = document.getElementById('items-container').querySelectorAll('tr[id^="row-"]');
         rows.forEach(row => {
             const id = row.id.split('-')[1];
-            const harga = parseFloat(document.getElementById(`harga-${id}`).value) || 0;
+            const hargaStr = document.getElementById(`harga-${id}`).value;
+            const harga = parseFloat(hargaStr) || 0;
             const qty = parseFloat(document.getElementById(`qty-${id}`).value) || 0;
-            const diskon = parseFloat(document.getElementById(`diskon-${id}`).value) || 0;
+            const diskonStr = document.getElementById(`diskon-${id}`).value.replace(/\./g, '');
+            const diskon = parseFloat(diskonStr) || 0;
             const subtotal = (harga * qty) - diskon;
             if(subtotal > 0) total += subtotal;
         });
@@ -221,19 +259,120 @@
         // Prevent default / normal submit
         const customerField = document.getElementById('customer_id').value;
         if (!customerField) {
-            alert('Silakan pilih Customer/Klien.');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Data Belum Lengkap',
+                text: 'Silakan pilih Customer/Klien.'
+            });
             return;
         }
 
         const rows = document.getElementById('items-container').querySelectorAll('tr[id^="row-"]');
         if (rows.length === 0) {
-            alert('Silakan tambahkan minimal 1 barang ke dalam pesanan.');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Keranjang Kosong',
+                text: 'Silakan tambahkan minimal 1 barang ke dalam pesanan.'
+            });
             return;
         }
         
-        if (confirm('Apakah Anda yakin transaksi ini sudah benar? Aksi ini akan otomatis memotong stok gudang.')) {
-            document.getElementById('soForm').submit();
-        }
+        Swal.fire({
+            title: 'Proses Transaksi?',
+            text: "Apakah Anda yakin data transaksi pesanan ini sudah benar?",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#0ea5e9',
+            cancelButtonColor: '#ef4444',
+            confirmButtonText: 'Ya, Proses!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = document.getElementById('soForm');
+                const btn = document.getElementById('btnSubmit');
+                const originalText = btn.innerHTML;
+                if(btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Memproses...';
+                }
+
+                // Sweeping DOM: Lucuti titik uang sedetik sebelum formData dibuat!
+                document.querySelectorAll('.input-rupiah').forEach(function(input) {
+                    input.value = input.value.replace(/\./g, '');
+                });
+
+                const formData = new FormData(form);
+                
+                Swal.fire({
+                    title: 'Memproses...',
+                    text: 'Mohon tunggu sebentar',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading()
+                    }
+                });
+
+                fetch("{{ route('sales-orders.store') }}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json' // Memaksa Laravel merespon HTTP 422 JSON jika gagal validasi
+                    },
+                    body: formData
+                })
+                .then(async response => {
+                    if (!response.ok) {
+                        if (response.status === 422) {
+                            // Tangkap JSON error otomatis dari Laravel FormRequest
+                            const data = await response.json();
+                            let errorHtml = '<ul class="text-left text-sm text-red-600 list-disc pl-4">';
+                            for (const [key, messages] of Object.entries(data.errors)) {
+                                messages.forEach(msg => {
+                                    // Customizing the hard-to-read "items.0.qty" messages
+                                    let cleanMsg = msg.replace(/items\.\d+\./g, 'Baris Barang ');
+                                    errorHtml += `<li>${cleanMsg}</li>`;
+                                });
+                            }
+                            errorHtml += '</ul>';
+                            
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Validasi Gagal!',
+                                html: errorHtml
+                            });
+                            throw new Error('Validation Failed');
+                        }
+                        throw new Error('Network response was not ok');
+                    }
+                    
+                    // Sukses (Follow Redirect)
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                    } else {
+                        window.location.href = "{{ route('sales-orders.index') }}"; 
+                    }
+                })
+                .catch(error => {
+                    if(error.message !== 'Validation Failed') {
+                        Swal.fire('Error System', 'Terjadi kesalahan pada koneksi atau server.', 'error');
+                        console.error(error);
+                    }
+                })
+                .finally(() => {
+                    // Kembalikan tombol anti-tremor
+                    if(btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                    // Kembalikan format rupiah yang tadi sempat dilucuti di UI
+                    document.querySelectorAll('.input-rupiah').forEach(function(input) {
+                        if(input.value) {
+                            input.value = new Intl.NumberFormat('id-ID').format(parseInt(input.value, 10));
+                        }
+                    });
+                });
+            }
+        });
     }
 </script>
 @endsection

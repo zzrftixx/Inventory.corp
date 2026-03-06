@@ -15,12 +15,15 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'nocache'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // API Endpoint for Select2 Item Search (AJAX Server-Side)
+    Route::get('/api/items/search', [ItemController::class, 'searchAjax'])->name('items.search');
 
     // Master Data (Admin & Super Admin)
     Route::middleware(['role:Super Admin|Admin'])->group(function () {

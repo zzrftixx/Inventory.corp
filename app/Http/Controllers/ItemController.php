@@ -23,7 +23,13 @@ class ItemController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        // Bersihkan dot formatting dari input currency sebelum validasi
+        $request->merge([
+            'harga_jual_default' => str_replace('.', '', $request->harga_jual_default),
+            'harga_dasar_aluminium_kg' => $request->has('harga_dasar_aluminium_kg') ? str_replace('.', '', $request->harga_dasar_aluminium_kg) : null,
+        ]);
+
+        $rules = [
             'kode_barang' => 'required|string|unique:items,kode_barang|max:255',
             'nama_barang' => 'required|string|max:255',
             'category_id' => 'required|exists:categories,id',
@@ -31,9 +37,16 @@ class ItemController extends Controller
             'harga_jual_default' => 'required|numeric|min:0',
             'stok_saat_ini' => 'required|integer|min:0',
             'batas_stok_minimum' => 'required|integer|min:0',
-        ]);
+            'is_aluminium' => 'nullable|boolean',
+            'berat_profil_kg' => 'nullable|numeric|min:0.001|required_if:is_aluminium,1',
+            'panjang_meter' => 'nullable|numeric|min:0.01|required_if:is_aluminium,1',
+            'harga_dasar_aluminium_kg' => 'nullable|numeric|min:0|required_if:is_aluminium,1',
+        ];
 
-        Item::create($request->all());
+        $validatedData = $request->validate($rules);
+        $validatedData['is_aluminium'] = $request->has('is_aluminium') ? 1 : 0;
+
+        Item::create($validatedData);
         return redirect()->route('items.index')->with('success', 'Barang berhasil ditambahkan.');
     }
 
@@ -45,19 +58,32 @@ class ItemController extends Controller
 
     public function update(Request $request, Item $item)
     {
-        $request->validate([
+        // Bersihkan dot formatting dari input currency sebelum validasi
+        $request->merge([
+            'harga_jual_default' => str_replace('.', '', $request->harga_jual_default),
+            'harga_dasar_aluminium_kg' => $request->has('harga_dasar_aluminium_kg') ? str_replace('.', '', $request->harga_dasar_aluminium_kg) : null,
+        ]);
+
+        $rules = [
             'kode_barang' => 'required|string|max:255|unique:items,kode_barang,' . $item->id,
             'nama_barang' => 'required|string|max:255',
             'category_id' => 'required|exists:categories,id',
             'satuan' => 'required|string|max:50',
             'harga_jual_default' => 'required|numeric|min:0',
             'batas_stok_minimum' => 'required|integer|min:0',
-        ]);
+            'is_aluminium' => 'nullable|boolean',
+            'berat_profil_kg' => 'nullable|numeric|min:0.001|required_if:is_aluminium,1',
+            'panjang_meter' => 'nullable|numeric|min:0.01|required_if:is_aluminium,1',
+            'harga_dasar_aluminium_kg' => 'nullable|numeric|min:0|required_if:is_aluminium,1',
+        ];
+
+        $validatedData = $request->validate($rules);
+        $validatedData['is_aluminium'] = $request->has('is_aluminium') ? 1 : 0;
 
         // Omit stok_saat_ini from direct update to maintain data integrity later,
         // unless explicitly needed. For now we will allow it if present.
-        $item->update($request->except(['stok_saat_ini']));
-        
+        $item->update($validatedData);
+
         return redirect()->route('items.index')->with('success', 'Data barang berhasil diperbarui.');
     }
 
@@ -69,5 +95,35 @@ class ItemController extends Controller
 
         $item->delete();
         return redirect()->route('items.index')->with('success', 'Barang berhasil dihapus.');
+    }
+
+    // Backend API Logic for Select2 AJAX Autocomplete
+    public function searchAjax(Request $request)
+    {
+        $search = $request->input('q');
+
+        // Jika user belum ngetik apa-apa, kembalikan array kosong agar server tidak kerja keras
+        if (empty($search)) {
+            return response()->json([]);
+        }
+
+        // Eksekusi pencarian dengan limit 20
+        $items = Item::where('kode_barang', 'LIKE', "%{$search}%")
+            ->orWhere('nama_barang', 'LIKE', "%{$search}%")
+            ->limit(20)
+            ->get(['id', 'kode_barang', 'nama_barang', 'harga_jual_default', 'stok_saat_ini', 'satuan']);
+
+        // Format data agar bisa dibaca langsung oleh library Select2
+        $formattedItems = $items->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'text' => $item->kode_barang . ' - ' . $item->nama_barang,
+                'price' => $item->harga_jual_default,
+                'stok_saat_ini' => $item->stok_saat_ini,
+                'satuan' => $item->satuan
+            ];
+        });
+
+        return response()->json($formattedItems);
     }
 }
