@@ -11,10 +11,14 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('sales_order_details', function (Blueprint $table) {
-            $table->json('metadata_kalkulasi')->nullable()->after('subtotal_netto');
+            if (!Schema::hasColumn('sales_order_details', 'metadata_kalkulasi')) {
+                $table->json('metadata_kalkulasi')->nullable()->after('subtotal_netto');
+            }
         });
         Schema::table('purchase_order_details', function (Blueprint $table) {
-            $table->json('metadata_kalkulasi')->nullable()->after('subtotal');
+            if (!Schema::hasColumn('purchase_order_details', 'metadata_kalkulasi')) {
+                $table->json('metadata_kalkulasi')->nullable()->after('harga_beli_satuan');
+            }
         });
     }
 
@@ -24,10 +28,14 @@ return new class extends Migration {
     public function down(): void
     {
         Schema::table('sales_order_details', function (Blueprint $table) {
-            $table->dropColumn('metadata_kalkulasi');
+            if (Schema::hasColumn('sales_order_details', 'metadata_kalkulasi')) {
+                $table->dropColumn('metadata_kalkulasi');
+            }
         });
         Schema::table('purchase_order_details', function (Blueprint $table) {
-            $table->dropColumn('metadata_kalkulasi');
+            if (Schema::hasColumn('purchase_order_details', 'metadata_kalkulasi')) {
+                $table->dropColumn('metadata_kalkulasi');
+            }
         });
     }
 };
