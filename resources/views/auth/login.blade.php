@@ -1,4 +1,7 @@
 <x-guest-layout>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
@@ -13,14 +16,17 @@
         </div>
 
         <!-- Password -->
-        <div class="mt-4">
+        <div class="mt-4 relative">
             <x-input-label for="password" :value="__('Password')" />
 
-            <x-text-input id="password" class="block mt-1 w-full"
+            <x-text-input id="password" class="block mt-1 w-full pr-10"
                             type="password"
                             name="password"
                             required autocomplete="current-password" />
-
+            <span id="togglePassword"
+                class="absolute right-3 top-9 cursor-pointer text-gray-500">
+                <i class="fa-solid fa-eye"></i>
+            </span>
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
@@ -44,4 +50,24 @@
             </x-primary-button>
         </div>
     </form>
+    <script>
+    document.addEventListener("DOMContentLoaded", function(){
+
+        const togglePassword = document.querySelector("#togglePassword");
+        const password = document.querySelector("#password");
+        const icon = togglePassword.querySelector("i");
+
+        togglePassword.addEventListener("click", function(){
+
+            const type = password.getAttribute("type") === "password"
+                ? "text"
+                : "password";
+
+            password.setAttribute("type", type);
+
+            icon.classList.toggle("fa-eye");
+            icon.classList.toggle("fa-eye-slash");
+        });
+    });
+    </script>
 </x-guest-layout>
