@@ -30,4 +30,11 @@ class Item extends Model
     {
         return $this->hasMany(StockMovement::class);
     }
+
+    public function suppliers()
+    {
+        return $this->belongsToMany(Supplier::class, 'item_supplier')
+            ->withPivot('kode_barang_pabrik', 'harga_beli_terakhir')
+            ->withTimestamps();
+    }
 }
