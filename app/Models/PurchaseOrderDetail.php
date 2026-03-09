@@ -10,7 +10,8 @@ class PurchaseOrderDetail extends Model
         'purchase_order_id',
         'item_id',
         'qty_butuh',
-        'harga_beli_satuan'
+        'harga_beli_satuan',
+        'metadata_kalkulasi'
     ];
 
     public function purchaseOrder()
