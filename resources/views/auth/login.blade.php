@@ -21,10 +21,10 @@
             <x-input-label for="password" :value="__('Password')" />
 
             <div class="relative mt-1">
-                <x-text-input id="password" class="block w-full pr-10" type="password" name="password" required
-                    autocomplete="current-password" />
-                <span id="togglePassword"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 transform cursor-pointer text-gray-500">
+                <x-text-input id="password" class="block w-full" style="padding-right: 2.5rem;" type="password"
+                    name="password" required autocomplete="current-password" />
+                <span id="togglePassword" class="absolute cursor-pointer text-gray-500"
+                    style="right: 0.75rem; top: 50%; transform: translateY(-50%);">
                     <i class="fa-solid fa-eye"></i>
                 </span>
             </div>
