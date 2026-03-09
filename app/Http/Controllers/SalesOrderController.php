@@ -139,39 +139,150 @@ class SalesOrderController extends Controller
         try {
             DB::beginTransaction();
 
-            foreach ($sales_order->details as $detail) {
-                $item = Item::lockForUpdate()->find($detail->item_id);
+            $has_deficit = false;
+            $backorder_details = [];
+            $suppliers_to_po = []; // mapping supplier_id -> array of items for auto PO.
 
-                if (!$item || $item->stok_saat_ini < $detail->qty) {
-                    $available = $item ? $item->stok_saat_ini : 0;
-                    throw new \Exception("Stok tidak memadai untuk {$item->nama_barang}. Butuh {$detail->qty}, Tersedia {$available}");
+            foreach ($sales_order->details as $detail) {
+                $item = Item::lockForUpdate()->with('suppliers')->find($detail->item_id);
+
+                if (!$item) {
+                    throw new \Exception("Barang dengan ID {$detail->item_id} tidak ditemukan.");
                 }
 
-                // Update stock
-                $item->stok_saat_ini -= $detail->qty;
-                $item->save();
+                $available = $item->stok_saat_ini;
 
-                // Record movement
-                StockMovement::create([
-                    'item_id' => $item->id,
-                    'tipe_pergerakan' => 'OUT',
-                    'qty' => $detail->qty,
-                    'sisa_stok' => $item->stok_saat_ini,
-                    'referensi' => 'SO: ' . $sales_order->no_faktur,
-                    'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
-                    'timestamp' => now()
-                ]);
+                if ($available < $detail->qty) {
+                    $has_deficit = true;
+                    $deficit_qty = $detail->qty - $available;
+
+                    // Store deficit data for the split Backorder SO
+                    $backorder_details[] = [
+                        'item_id' => $item->id,
+                        'qty' => $deficit_qty,
+                        'harga_modal_saat_transaksi' => $detail->harga_modal_saat_transaksi,
+                        'harga_satuan_saat_transaksi' => $detail->harga_satuan_saat_transaksi,
+                        'diskon' => $detail->diskon,
+                        'subtotal_netto' => ($detail->harga_satuan_saat_transaksi * $deficit_qty) - $detail->diskon,
+                        'metadata_kalkulasi' => $detail->metadata_kalkulasi
+                    ];
+
+                    // Prepare Auto-PO logic by mapping to the first supplier (if mapped)
+                    $supplier = $item->suppliers->first();
+                    if ($supplier) {
+                        $suppliers_to_po[$supplier->id][] = [
+                            'item_id' => $item->id,
+                            'qty_butuh' => $deficit_qty,
+                            'harga_beli_satuan' => $supplier->pivot->harga_beli_terakhir ?? $item->harga_beli_rata_rata,
+                            'metadata_kalkulasi' => $detail->metadata_kalkulasi
+                        ];
+                    }
+
+                    // Update the CURRENT detail to only take the available stock (if available > 0)
+                    if ($available > 0) {
+                        $detail->qty = $available;
+                        $detail->subtotal_netto = ($detail->harga_satuan_saat_transaksi * $available) - $detail->diskon;
+                        $detail->save();
+                    } else {
+                        // If no stock at all, delete this detail from current SO!
+                        $detail->delete();
+                    }
+                }
+
+                // If available > 0, deduct the stock and write StockMovement for the Current SO
+                // Notice we use the possibly mutated $detail->qty which ensures we don't drop below 0
+                if ($available > 0) {
+                    $item->stok_saat_ini -= $detail->qty;
+                    $item->save();
+
+                    StockMovement::create([
+                        'item_id' => $item->id,
+                        'tipe_pergerakan' => 'OUT',
+                        'qty' => $detail->qty,
+                        'sisa_stok' => $item->stok_saat_ini,
+                        'referensi' => 'SO: ' . $sales_order->no_faktur,
+                        'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
+                        'timestamp' => now()
+                    ]);
+                }
             }
 
-            $sales_order->update(['status' => 'Selesai']);
+            // Recalculate Current SO total
+            $sales_order->total_invoice = $sales_order->details()->sum('subtotal_netto');
+            $sales_order->status = 'Selesai';
+            $sales_order->save();
+
+            // Create Backorder SO and Draft POs if there's a deficit
+            if ($has_deficit && count($backorder_details) > 0) {
+                // Generate a new SO number
+                $datePrefix = \Carbon\Carbon::parse($sales_order->tanggal_transaksi)->format('Ymd');
+                $lastOrder = SalesOrder::whereDate('tanggal_transaksi', $sales_order->tanggal_transaksi)->orderBy('id', 'desc')->first();
+                $sequence = $lastOrder ? (int) substr($lastOrder->no_faktur, -4) + 1 : 1;
+                $newNoFaktur = 'INV-' . $datePrefix . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT) . '-BO';
+
+                $boOrder = SalesOrder::create([
+                    'no_faktur' => $newNoFaktur,
+                    'tanggal_transaksi' => $sales_order->tanggal_transaksi,
+                    'customer_id' => $sales_order->customer_id,
+                    'user_id' => $sales_order->user_id,
+                    'total_invoice' => 0,
+                    'status' => 'Backorder' // Locked Backorder status
+                ]);
+
+                $boTotal = 0;
+                foreach ($backorder_details as $b_detail) {
+                    $boTotal += $b_detail['subtotal_netto'];
+                    $b_detail['sales_order_id'] = $boOrder->id;
+                    \App\Models\SalesOrderDetail::create($b_detail);
+                }
+                $boOrder->update(['total_invoice' => $boTotal]);
+
+                // Create Auto-POs per supplier
+                foreach ($suppliers_to_po as $supplier_id => $po_items) {
+                    $datePrefixPO = \Carbon\Carbon::parse($sales_order->tanggal_transaksi)->format('Ymd');
+                    $lastPO = \App\Models\PurchaseOrder::whereDate('tanggal_po', $sales_order->tanggal_transaksi)->orderBy('id', 'desc')->first();
+                    $sequencePO = $lastPO ? (int) substr($lastPO->no_po, -4) + 1 : 1;
+                    $noPO = 'PO-' . $datePrefixPO . '-' . str_pad($sequencePO, 4, '0', STR_PAD_LEFT);
+
+                    $totalPO = 0;
+                    foreach ($po_items as $item) {
+                        $totalPO += ($item['qty_butuh'] * $item['harga_beli_satuan']);
+                    }
+
+                    $draftPO = \App\Models\PurchaseOrder::create([
+                        'no_po' => $noPO,
+                        'tanggal_po' => $sales_order->tanggal_transaksi,
+                        'supplier_id' => $supplier_id,
+                        'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
+                        'status' => 'Draft',
+                        'total_amount_po' => $totalPO
+                    ]);
+
+                    foreach ($po_items as $item) {
+                        \App\Models\PurchaseOrderDetail::create([
+                            'purchase_order_id' => $draftPO->id,
+                            'item_id' => $item['item_id'],
+                            'qty_butuh' => $item['qty_butuh'],
+                            'harga_beli_satuan' => $item['harga_beli_satuan'],
+                            'metadata_kalkulasi' => $item['metadata_kalkulasi']
+                        ]);
+                    }
+
+                    // Increase sequence slightly for uniqueness in loops just in case multiple suppliers
+                    $sequencePO++;
+                    sleep(1); // prevent identical exact timestamps for DB uniqueness if strict
+                }
+
+                DB::commit();
+                return redirect()->route('sales-orders.show', $sales_order->id)->with('success', 'Transaksi dikunci sebagian. Stok tidak cukup memicu Split Order ke dokumen: ' . $newNoFaktur . ' (Backorder) dan pembuatan Draft PO otomatis ke supplier.');
+            }
 
             DB::commit();
-
-            return redirect()->route('sales-orders.show', $sales_order->id)->with('success', 'Transaksi berhasil dikunci (LOCKED) dan stok telah dipotong.');
+            return redirect()->route('sales-orders.show', $sales_order->id)->with('success', 'Transaksi berhasil dikunci (LOCKED) sepenuhnya tanpa deficit stok.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Gagal mengunci transaksi: ' . $e->getMessage());
+            return back()->with('error', 'Gagal memproses kunci & split order: ' . $e->getMessage());
         }
     }
 
