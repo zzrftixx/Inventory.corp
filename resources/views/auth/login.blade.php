@@ -24,7 +24,7 @@
                 <x-text-input id="password" class="block w-full pr-10" type="password" name="password" required
                     autocomplete="current-password" />
                 <span id="togglePassword"
-                    class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-gray-500">
+                    class="absolute right-3 top-1/2 -translate-y-1/2 transform cursor-pointer text-gray-500">
                     <i class="fa-solid fa-eye"></i>
                 </span>
             </div>
