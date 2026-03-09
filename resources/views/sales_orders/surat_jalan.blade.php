@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,20 +8,34 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fff; color: #000; }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #fff;
+            color: #000;
+        }
+
         @media print {
-            body { -webkit-print-color-adjust: exact; }
-            .no-print { display: none !important; }
+            body {
+                -webkit-print-color-adjust: exact;
+            }
+
+            .no-print {
+                display: none !important;
+            }
         }
     </style>
 </head>
+
 <body class="p-8 max-w-4xl mx-auto">
 
     <!-- Print Action -->
     <div class="mb-6 flex justify-end no-print">
-        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+        <button onclick="window.print()"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
             </svg>
             Cetak Surat Jalan
         </button>
@@ -33,7 +48,8 @@
             <p class="text-sm mt-1">Specialist Aluminium & Glass Contractor</p>
             <p class="text-sm">Telp: 0851 0158 8887</p>
             <p class="text-sm">Email: cv.makarya.ag@gmail.com</p>
-            <p class="text-sm w-80 mt-1">Jl. Karang Tengah Sitimulyo, Karang Anom, Sitimulyo, Kec. Piyungan, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55792</p>
+            <p class="text-sm w-80 mt-1">Jl. Karang Tengah Sitimulyo, Karang Anom, Sitimulyo, Kec. Piyungan, Kabupaten
+                Bantul, Daerah Istimewa Yogyakarta 55792</p>
         </div>
         <div class="text-right">
             <h2 class="text-3xl font-bold text-gray-800 uppercase tracking-widest">Surat Jalan</h2>
@@ -54,7 +70,8 @@
             <table class="w-full text-sm">
                 <tr>
                     <td class="text-gray-500 py-1 w-32">Tanggal Kirim:</td>
-                    <td class="font-bold border-b border-dotted border-gray-400">{{ \Carbon\Carbon::parse($sales_order->tanggal_transaksi)->format('d F Y') }}</td>
+                    <td class="font-bold border-b border-dotted border-gray-400">
+                        {{ \Carbon\Carbon::parse($sales_order->tanggal_transaksi)->format('d F Y') }}</td>
                 </tr>
                 <tr>
                     <td class="text-gray-500 py-1">Supir/Ekspedisi:</td>
@@ -82,31 +99,33 @@
         </thead>
         <tbody>
             @foreach($sales_order->details as $index => $detail)
-            <tr class="border-b border-gray-300">
-                <td class="py-2 px-3 text-center border-r border-black">{{ $index + 1 }}</td>
-                <td class="py-2 px-3 text-left border-r border-black">
-                    {{ $detail->item->nama_barang ?? 'Unknown' }}
-                    <div class="text-xs text-gray-500">{{ $detail->item->kode_barang ?? '-' }}</div>
-                </td>
-                <td class="py-2 px-3 text-center border-r border-black font-bold text-lg">
-                    {{ $detail->qty }} <span class="text-xs font-normal text-gray-600">{{ $detail->item->satuan ?? '' }}</span>
-                </td>
-                <td class="py-2 px-3 text-center"></td>
-            </tr>
+                <tr class="border-b border-gray-300">
+                    <td class="py-2 px-3 text-center border-r border-black">{{ $index + 1 }}</td>
+                    <td class="py-2 px-3 text-left border-r border-black">
+                        {{ $detail->item->nama_barang ?? 'Unknown' }}
+                        <div class="text-xs text-gray-500">{{ $detail->item->kode_barang ?? '-' }}</div>
+                    </td>
+                    <td class="py-2 px-3 text-center border-r border-black font-bold text-lg">
+                        {{ $detail->qty }} <span
+                            class="text-xs font-normal text-gray-600">{{ $detail->item->satuan ?? '' }}</span>
+                    </td>
+                    <td class="py-2 px-3 text-center"></td>
+                </tr>
             @endforeach
             <!-- Padding rows if needed -->
             @for($i = count($sales_order->details); $i < 4; $i++)
-            <tr class="border-b border-gray-300">
-                <td class="py-4 px-3 border-r border-black text-center text-transparent">-</td>
-                <td class="py-4 px-3 border-r border-black text-transparent">-</td>
-                <td class="py-4 px-3 border-r border-black text-center text-transparent">-</td>
-                <td class="py-4 px-3 text-center text-transparent">-</td>
-            </tr>
+                <tr class="border-b border-gray-300">
+                    <td class="py-4 px-3 border-r border-black text-center text-transparent">-</td>
+                    <td class="py-4 px-3 border-r border-black text-transparent">-</td>
+                    <td class="py-4 px-3 border-r border-black text-center text-transparent">-</td>
+                    <td class="py-4 px-3 text-center text-transparent">-</td>
+                </tr>
             @endfor
         </tbody>
     </table>
 
-    <p class="text-xs text-gray-500 italic mb-8">* Periksa kembali barang sebelum supir meninggalkan lokasi. Retur tidak diterima jika kerusakan diakibatkan kelalaian proyek.</p>
+    <p class="text-xs text-gray-500 italic mb-8">* Periksa kembali barang sebelum supir meninggalkan lokasi. Retur tidak
+        diterima jika kerusakan diakibatkan kelalaian proyek.</p>
 
     <!-- Signatures -->
     <div class="flex justify-between text-sm text-center">
@@ -120,10 +139,11 @@
         </div>
         <div class="w-1/3">
             <p class="mb-16">Hormat Kami,</p>
-            <p class="font-bold underline">CV MA KARYA</p>
-            <p class="text-xs text-gray-500 mt-1">Bagian Gudang</p>
+            <p class="font-bold underline">{{ $sales_order->user->name ?? 'CV MA KARYA' }}</p>
+            <p class="text-xs text-gray-500 mt-1">Dibuat Oleh</p>
         </div>
     </div>
 
 </body>
+
 </html>
