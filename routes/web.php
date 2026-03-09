@@ -10,6 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SalesOrderController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\ReportController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -24,6 +25,11 @@ Route::middleware(['auth', 'verified', 'nocache'])->group(function () {
 
     // API Endpoint for Select2 Item Search (AJAX Server-Side)
     Route::get('/api/items/search', [ItemController::class, 'searchAjax'])->name('items.search');
+
+    // Report (Super Admin)
+    Route::middleware(['role:Super Admin'])->group(function () {
+        Route::get('/reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit-loss');
+    });
 
     // Master Data (Admin & Super Admin)
     Route::middleware(['role:Super Admin|Admin'])->group(function () {
@@ -58,4 +64,4 @@ Route::middleware(['auth', 'verified', 'nocache'])->group(function () {
     });
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
