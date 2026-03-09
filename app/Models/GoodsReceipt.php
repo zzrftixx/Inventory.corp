@@ -4,14 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class PurchaseOrderDetail extends Model
+class GoodsReceipt extends Model
 {
     protected $fillable = [
         'purchase_order_id',
-        'item_id',
-        'qty_butuh',
-        'harga_beli_satuan',
-        'metadata_kalkulasi'
+        'no_surat_jalan_supplier',
+        'tanggal_terima',
+        'penerima_id',
+        'catatan'
     ];
 
     public function purchaseOrder()
@@ -19,12 +19,12 @@ class PurchaseOrderDetail extends Model
         return $this->belongsTo(PurchaseOrder::class);
     }
 
-    public function item()
+    public function penerima()
     {
-        return $this->belongsTo(Item::class);
+        return $this->belongsTo(User::class, 'penerima_id');
     }
 
-    public function receipts()
+    public function details()
     {
         return $this->hasMany(GoodsReceiptDetail::class);
     }

@@ -54,6 +54,7 @@ Route::middleware(['auth', 'verified', 'nocache'])->group(function () {
     // Purchase Orders (Gudang, Admin, Super Admin)
     Route::middleware(['role:Super Admin|Admin|Gudang'])->group(function () {
         Route::resource('purchase-orders', PurchaseOrderController::class);
+        Route::get('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receiveForm'])->name('purchase-orders.receive.form');
         Route::post('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receive'])->name('purchase-orders.receive');
         Route::get('purchase-orders/{purchase_order}/print', [PurchaseOrderController::class, 'print'])->name('purchase-orders.print');
     });
