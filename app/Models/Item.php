@@ -14,7 +14,11 @@ class Item extends Model
         'harga_jual_default',
         'harga_beli_rata_rata',
         'stok_saat_ini',
-        'batas_stok_minimum'
+        'batas_stok_minimum',
+        'is_aluminium',
+        'berat_profil_kg',
+        'panjang_meter',
+        'harga_dasar_aluminium_kg'
     ];
 
     public function category()
@@ -25,5 +29,12 @@ class Item extends Model
     public function stockMovements()
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    public function suppliers()
+    {
+        return $this->belongsToMany(Supplier::class, 'item_supplier')
+            ->withPivot('kode_barang_pabrik', 'harga_beli_terakhir')
+            ->withTimestamps();
     }
 }

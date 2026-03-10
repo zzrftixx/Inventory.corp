@@ -18,9 +18,11 @@
                 @if($purchaseOrder->status == 'Ordered')
                     <span class="bg-amber-100 text-amber-800 py-1 px-3 rounded text-xs font-semibold animate-pulse">Menunggu
                         Barang Datang</span>
-                @elseif($purchaseOrder->status == 'Received')
-                    <span class="bg-emerald-100 text-emerald-800 py-1 px-3 rounded text-xs font-semibold"><i
-                            class="ph-fill ph-check-circle mr-1"></i> Selesai Diterima</span>
+                @elseif(in_array($purchaseOrder->status, ['Received', 'Closed']))
+                    <span
+                        class="{{ $purchaseOrder->status == 'Closed' ? 'bg-slate-100 text-slate-800' : 'bg-emerald-100 text-emerald-800' }} py-1 px-3 rounded text-xs font-semibold"><i
+                            class="ph-fill ph-check-circle mr-1"></i> Selesai Diterima
+                        {{ $purchaseOrder->status == 'Closed' ? '(Ditutup Paksa)' : '' }}</span>
                 @endif
             </div>
 
@@ -32,7 +34,8 @@
                 <div>
                     <p class="text-xs text-slate-400 mb-1">Tanggal Pesan</p>
                     <p class="text-sm font-medium text-slate-800">
-                        {{ \Carbon\Carbon::parse($purchaseOrder->tanggal_po)->format('d F Y') }}</p>
+                        {{ \Carbon\Carbon::parse($purchaseOrder->tanggal_po)->format('d F Y') }}
+                    </p>
                 </div>
                 <div>
                     <p class="text-xs text-slate-400 mb-1">Pembuat PO</p>
@@ -40,22 +43,38 @@
                 </div>
             </div>
 
-            @if($purchaseOrder->status == 'Ordered')
-                <div class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg flex items-center justify-between">
-                    <div>
-                        <h4 class="text-sm font-bold text-sky-800">Barang Sudah Tiba di Gudang?</h4>
-                        <p class="text-xs text-sky-700 mt-1">Klik tombol di samping jika fisik barang sudah diterima dan
-                            dihitung. Sistem akan otomatis menambah stok.</p>
+            @if(in_array($purchaseOrder->status, ['Ordered', 'Partial']))
+                <div
+                    class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg flex flex-col md:flex-row md:items-center justify-between">
+                    <div class="mb-3 md:mb-0 md:mr-4">
+                        <h4 class="text-sm font-bold text-sky-800">Proses Penerimaan Fisik</h4>
+                        <p class="text-xs text-sky-700 mt-1">Klik tombol di samping untuk menginput jumlah barang yang datang.
+                            Stok sistem akan bertambah berdasarkan form input.</p>
                     </div>
-                    <form action="{{ route('purchase-orders.receive', $purchaseOrder->id) }}" method="POST"
-                        onsubmit="return confirm('Apakah Anda yakin barang sudah diterima dan jumlahnya sesuai? Stok sistem akan bertambah otomatis.');">
-                        @csrf
-                        <button type="submit"
-                            class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center nowrap whitespace-nowrap">
-                            <i class="ph-fill ph-check-square-offset text-lg mr-2"></i> Konfirmasi Penerimaan
-                        </button>
-                    </form>
+                    <a href="{{ route('purchase-orders.receive.form', $purchaseOrder->id) }}"
+                        class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center nowrap whitespace-nowrap w-full md:w-auto justify-center">
+                        <i class="ph-fill ph-check-square-offset text-lg mr-2"></i> Proses Penerimaan
+                    </a>
                 </div>
+
+                @if($purchaseOrder->status == 'Partial')
+                    <div
+                        class="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-lg flex flex-col md:flex-row md:items-center justify-between">
+                        <div class="mb-3 md:mb-0 md:mr-4">
+                            <h4 class="text-sm font-bold text-rose-800">Tutup Paksa PO (Force Close)</h4>
+                            <p class="text-xs text-rose-700 mt-1">Jika sisa pesanan dipastikan <strong>batal/tidak akan
+                                    dikirim</strong> oleh pabrik, tutup paksa Purchase Order ini untuk memberhentikan antrean.</p>
+                        </div>
+                        <form action="{{ route('purchase-orders.force-close', $purchaseOrder->id) }}" method="POST"
+                            onsubmit="return confirm('Peringatan: PO ini akan ditutup secara permanen dengan status Selesai. Lanjutkan?');">
+                            @csrf
+                            <button type="submit"
+                                class="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center nowrap whitespace-nowrap w-full md:w-auto justify-center">
+                                <i class="ph-fill ph-lock-key text-lg mr-2"></i> Tutup Paksa PO
+                            </button>
+                        </form>
+                    </div>
+                @endif
             @endif
         </div>
 
@@ -65,7 +84,8 @@
                     class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
                     Ditujukan Ke Supplier</h3>
                 <p class="text-base font-bold text-slate-800 mb-1">
-                    {{ $purchaseOrder->supplier->nama_supplier ?? 'Tidak Diketahui' }}</p>
+                    {{ $purchaseOrder->supplier->nama_supplier ?? 'Tidak Diketahui' }}
+                </p>
                 <div class="flex items-center text-sm text-slate-500 mt-2">
                     <i class="ph-fill ph-phone mr-2"></i> {{ $purchaseOrder->supplier->kontak ?? '-' }}
                 </div>
@@ -118,9 +138,11 @@
                                     class="text-xs text-slate-500 font-normal ml-1">{{ $detail->item->satuan ?? '' }}</span>
                             </td>
                             <td class="py-3 px-6 text-sm text-right text-slate-600">Rp
-                                {{ number_format($detail->harga_beli_satuan, 0, ',', '.') }}</td>
+                                {{ number_format($detail->harga_beli_satuan, 0, ',', '.') }}
+                            </td>
                             <td class="py-3 px-6 text-sm text-right font-semibold text-slate-800">Rp
-                                {{ number_format($detail->qty_butuh * $detail->harga_beli_satuan, 0, ',', '.') }}</td>
+                                {{ number_format($detail->qty_butuh * $detail->harga_beli_satuan, 0, ',', '.') }}
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -130,7 +152,8 @@
                             class="py-4 px-6 text-right font-bold text-slate-700 uppercase tracking-widest text-xs">Total
                             Tagihan PO</td>
                         <td class="py-4 px-6 text-right font-bold text-primary text-lg">Rp
-                            {{ number_format($purchaseOrder->total_amount_po, 0, ',', '.') }}</td>
+                            {{ number_format($purchaseOrder->total_amount_po, 0, ',', '.') }}
+                        </td>
                     </tr>
                 </tfoot>
             </table>

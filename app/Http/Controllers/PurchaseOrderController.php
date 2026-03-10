@@ -16,8 +16,93 @@ class PurchaseOrderController extends Controller
 {
     public function index()
     {
-        $purchaseOrders = PurchaseOrder::with(['supplier', 'user'])->latest()->paginate(15);
+        $purchaseOrders = PurchaseOrder::with(['supplier', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
         return view('purchase_orders.index', compact('purchaseOrders'));
+    }
+
+    public function mergeIndex()
+    {
+        $draftPOs = PurchaseOrder::with(['supplier', 'details.item'])
+            ->where('status', 'Draft')
+            ->get()
+            ->groupBy('supplier_id')
+            ->filter(function ($pos) {
+                return $pos->count() > 1;
+            });
+
+        return view('purchase_orders.merge', compact('draftPOs'));
+    }
+
+    public function mergeProcess(Request $request, \App\Models\Supplier $supplier)
+    {
+        $draftPOs = PurchaseOrder::with('details')
+            ->where('status', 'Draft')
+            ->where('supplier_id', $supplier->id)
+            ->get();
+
+        if ($draftPOs->count() < 2) {
+            return back()->with('error', 'Tidak cukup PO Draft untuk digabungkan bagi supplier ini.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $mergedDetails = [];
+            $totalAmount = 0;
+
+            foreach ($draftPOs as $po) {
+                foreach ($po->details as $detail) {
+                    $itemId = $detail->item_id;
+                    if (!isset($mergedDetails[$itemId])) {
+                        $mergedDetails[$itemId] = [
+                            'qty_butuh' => 0,
+                            'harga_beli_satuan' => $detail->harga_beli_satuan,
+                            'metadata_kalkulasi' => $detail->metadata_kalkulasi
+                        ];
+                    }
+                    $mergedDetails[$itemId]['qty_butuh'] += $detail->qty_butuh;
+                    $totalAmount += ($detail->qty_butuh * $detail->harga_beli_satuan);
+                }
+            }
+
+            $datePrefix = \Carbon\Carbon::now()->format('Ymd');
+            $lastPO = PurchaseOrder::whereDate('tanggal_po', \Carbon\Carbon::today())->orderBy('id', 'desc')->first();
+            $sequence = $lastPO ? (int) substr($lastPO->no_po, -4) + 1 : 1;
+            $newNoPO = 'PO-' . $datePrefix . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+
+            $newPo = PurchaseOrder::create([
+                'no_po' => $newNoPO,
+                'tanggal_po' => \Carbon\Carbon::today(),
+                'supplier_id' => $supplier->id,
+                'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
+                'status' => 'Draft',
+                'total_amount_po' => $totalAmount
+            ]);
+
+            foreach ($mergedDetails as $itemId => $data) {
+                \App\Models\PurchaseOrderDetail::create([
+                    'purchase_order_id' => $newPo->id,
+                    'item_id' => $itemId,
+                    'qty_butuh' => $data['qty_butuh'],
+                    'harga_beli_satuan' => $data['harga_beli_satuan'],
+                    'metadata_kalkulasi' => $data['metadata_kalkulasi']
+                ]);
+            }
+
+            foreach ($draftPOs as $po) {
+                $po->details()->delete();
+                $po->delete();
+            }
+
+            DB::commit();
+            return redirect()->route('purchase-orders.index')->with('success', 'Berhasil menggabungkan ' . $draftPOs->count() . ' draft PO (' . $supplier->nama_supplier . ') menjadi 1 dokumen tunggal (' . $newNoPO . ').');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menggabungkan PO: ' . $e->getMessage());
+        }
     }
 
     public function create(Request $request)
@@ -115,27 +200,71 @@ class PurchaseOrderController extends Controller
         return view('purchase_orders.show', compact('purchaseOrder'));
     }
 
+    public function receiveForm(PurchaseOrder $purchaseOrder)
+    {
+        if (in_array($purchaseOrder->status, ['Received', 'Batal'])) {
+            return back()->with('error', 'Status PO tidak valid untuk penerimaan barang.');
+        }
+
+        $purchaseOrder->load(['details.item', 'details.receipts']);
+        return view('purchase_orders.receive_form', compact('purchaseOrder'));
+    }
+
     public function receive(Request $request, PurchaseOrder $purchaseOrder)
     {
-        if ($purchaseOrder->status == 'Received') {
-            return back()->with('error', 'Barang pada PO ini sudah diterima sebelumnya.');
+        if (in_array($purchaseOrder->status, ['Received', 'Batal'])) {
+            return back()->with('error', 'Status PO tidak valid untuk penerimaan barang.');
         }
+
+        $request->validate([
+            'tanggal_terima' => 'required|date',
+            'items' => 'required|array',
+            'items.*.detail_id' => 'required|exists:purchase_order_details,id',
+            'items.*.qty' => 'required|numeric|min:0'
+        ]);
 
         try {
             DB::beginTransaction();
 
-            foreach ($purchaseOrder->details as $detail) {
-                $item = Item::lockForUpdate()->find($detail->item_id);
+            // Filter out items where qty == 0 to avoid blank receipts
+            $items_to_receive = array_filter($request->items, function ($i) {
+                return isset($i['qty']) && $i['qty'] > 0; });
+
+            if (empty($items_to_receive)) {
+                return back()->with('error', 'Silakan input setidaknya satu barang dengan qty > 0.');
+            }
+
+            $receipt = \App\Models\GoodsReceipt::create([
+                'purchase_order_id' => $purchaseOrder->id,
+                'no_surat_jalan_supplier' => $request->no_surat_jalan_supplier,
+                'tanggal_terima' => $request->tanggal_terima,
+                'penerima_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
+                'catatan' => $request->catatan
+            ]);
+
+            foreach ($items_to_receive as $input) {
+                $detail = \App\Models\PurchaseOrderDetail::findOrFail($input['detail_id']);
+                $qty_received = $input['qty'];
+
+                // Track detail
+                \App\Models\GoodsReceiptDetail::create([
+                    'goods_receipt_id' => $receipt->id,
+                    'purchase_order_detail_id' => $detail->id,
+                    'item_id' => $detail->item_id,
+                    'qty_diterima' => $qty_received,
+                    'kondisi' => 'Baik' // For now, assumed good. Can be expanded based on UI in future.
+                ]);
+
+                // Update physical stock
+                $item = \App\Models\Item::lockForUpdate()->find($detail->item_id);
                 if ($item) {
-                    // Cogs / Moving Average Logic
                     $old_stok = $item->stok_saat_ini;
                     $old_avg = $item->harga_beli_rata_rata;
-                    $new_qty = $detail->qty_butuh;
                     $new_price = $detail->harga_beli_satuan;
 
-                    $total_stok = $old_stok + $new_qty;
+                    $total_stok = $old_stok + $qty_received;
                     if ($total_stok > 0) {
-                        $new_avg = (($old_stok * $old_avg) + ($new_qty * $new_price)) / $total_stok;
+                        $new_avg = (($old_stok * $old_avg) + ($qty_received * $new_price)) / $total_stok;
                     } else {
                         $new_avg = $new_price;
                     }
@@ -144,27 +273,57 @@ class PurchaseOrderController extends Controller
                     $item->stok_saat_ini = $total_stok;
                     $item->save();
 
-                    StockMovement::create([
+                    \App\Models\StockMovement::create([
                         'item_id' => $item->id,
                         'tipe_pergerakan' => 'IN',
-                        'qty' => $new_qty,
+                        'qty' => $qty_received,
                         'sisa_stok' => $item->stok_saat_ini,
-                        'referensi' => 'Terima PO: ' . $purchaseOrder->no_po,
+                        'referensi' => 'Terima PO: ' . $purchaseOrder->no_po . ' (SJ: ' . ($request->no_surat_jalan_supplier ?? '-') . ')',
                         'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
                         'timestamp' => now()
                     ]);
                 }
             }
 
-            $purchaseOrder->update(['status' => 'Received']);
+            // Verify if fully received
+            $is_complete = true;
+            $purchaseOrder->load('details.receipts');
+            foreach ($purchaseOrder->details as $d) {
+                $total_in = $d->receipts->sum('qty_diterima');
+                if ($total_in < $d->qty_butuh) {
+                    $is_complete = false;
+                    break;
+                }
+            }
+
+            $purchaseOrder->update(['status' => $is_complete ? 'Received' : 'Partial']);
 
             DB::commit();
 
-            return redirect()->route('purchase-orders.show', $purchaseOrder->id)->with('success', 'Barang telah berhasil diterima dan stok ditambahkan.');
+            return redirect()->route('purchase-orders.show', $purchaseOrder->id)->with('success', 'Penerimaan barang fisik (' . count($items_to_receive) . ' item) berhasil disimpan.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Gagal memproses penerimaan barang: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Gagal memproses penerimaan barang: ' . $e->getMessage());
+        }
+    public function forceClose(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        if ($purchaseOrder->status !== 'Partial') {
+            return back()->with('error', 'Hanya PO berstatus Partial yang dapat ditutup paksa.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $purchaseOrder->update(['status' => 'Closed']);
+
+            DB::commit();
+
+            return redirect()->route('purchase-orders.show', $purchaseOrder->id)->with('success', 'Purchase Order berhasil ditutup paksa. Sisa barang batal tidak akan ditambahkan ke stok.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menutup paksa PO: ' . $e->getMessage());
         }
     }
 

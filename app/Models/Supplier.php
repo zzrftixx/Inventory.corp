@@ -19,4 +19,11 @@ class Supplier extends Model
     {
         return $this->hasMany(PurchaseOrder::class);
     }
+
+    public function items()
+    {
+        return $this->belongsToMany(Item::class, 'item_supplier')
+            ->withPivot('kode_barang_pabrik', 'harga_beli_terakhir')
+            ->withTimestamps();
+    }
 }

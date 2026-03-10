@@ -10,6 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SalesOrderController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\ReportController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -24,6 +25,11 @@ Route::middleware(['auth', 'verified', 'nocache'])->group(function () {
 
     // API Endpoint for Select2 Item Search (AJAX Server-Side)
     Route::get('/api/items/search', [ItemController::class, 'searchAjax'])->name('items.search');
+
+    // Report (Super Admin)
+    Route::middleware(['role:Super Admin'])->group(function () {
+        Route::get('/reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit-loss');
+    });
 
     // Master Data (Admin & Super Admin)
     Route::middleware(['role:Super Admin|Admin'])->group(function () {
@@ -47,8 +53,12 @@ Route::middleware(['auth', 'verified', 'nocache'])->group(function () {
 
     // Purchase Orders (Gudang, Admin, Super Admin)
     Route::middleware(['role:Super Admin|Admin|Gudang'])->group(function () {
+        Route::get('purchase-orders/merge', [PurchaseOrderController::class, 'mergeIndex'])->name('purchase-orders.merge.index');
+        Route::post('purchase-orders/merge/{supplier}', [PurchaseOrderController::class, 'mergeProcess'])->name('purchase-orders.merge.process');
         Route::resource('purchase-orders', PurchaseOrderController::class);
+        Route::get('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receiveForm'])->name('purchase-orders.receive.form');
         Route::post('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receive'])->name('purchase-orders.receive');
+        Route::post('purchase-orders/{purchase_order}/force-close', [PurchaseOrderController::class, 'forceClose'])->name('purchase-orders.force-close');
         Route::get('purchase-orders/{purchase_order}/print', [PurchaseOrderController::class, 'print'])->name('purchase-orders.print');
     });
 
@@ -58,4 +68,4 @@ Route::middleware(['auth', 'verified', 'nocache'])->group(function () {
     });
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

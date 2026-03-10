@@ -59,3 +59,13 @@ php artisan migrate:fresh --seed
 Sistem akan menginstal ulang tabel dengan bersih dan menginjeksi *RealisticMasterDataSeeder* dan *RolesAndPermissionsSeeder* dalam hitungan detik. 
 
 Setelah selesai, login menggunakan akun di atas dan nikmati sistem yang sudah *"hidup"* secara ajaib! 🔥
+
+---
+
+## 🏗️ Fitur Spesial: Kalkulasi Rincian Aluminium (Phase 6 - Fix 18)
+
+Sistem telah dilengkapi dengan *Single Table Inheritance* pada tabel `items` untuk membedakan aksesoris biasa dan batang aluminium.
+
+1. **Harga Acuan Dinamis**: Harga batang aluminium pada `CV Ma Karya` dihitung otomatis menggunakan formula `Kg x Panjang Meter x Harga Dasar / Kg`.
+2. **Snapshot Transaksi (Anti-Inflasi)**: Jika terjadi inflasi harga aluminium dunia di masa depan, invoice lama tidak akan berubah berkat penggunaan kolom tipe `JSON` (`metadata_kalkulasi`) yang bertugas "Membekukan" memori/rumus harga modal saat detik transaksi terjadi.
+3. **Roling & Hak Akses Ketat**: Rumus margin HPP Modal disembunyikan total dari Surat Jalan Supir, Cetak Faktur, dan layar Staff Kasir menggunakan pengawasan ketat Spatie Role. *Secret Detail* bertanda 🔒 (Kunci Merah) ini **HANYA** bisa dilihat oleh `Super Administrator` atau `Bos` di halaman Detail Transaksi.

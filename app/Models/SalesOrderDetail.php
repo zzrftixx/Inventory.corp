@@ -13,7 +13,8 @@ class SalesOrderDetail extends Model
         'harga_modal_saat_transaksi',
         'harga_satuan_saat_transaksi',
         'diskon',
-        'subtotal_netto'
+        'subtotal_netto',
+        'metadata_kalkulasi'
     ];
 
     public function salesOrder()
