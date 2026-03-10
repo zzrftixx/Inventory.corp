@@ -221,6 +221,25 @@ class PurchaseOrderController extends Controller
             DB::rollBack();
             return back()->withInput()->with('error', 'Gagal memproses penerimaan barang: ' . $e->getMessage());
         }
+    public function forceClose(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        if ($purchaseOrder->status !== 'Partial') {
+            return back()->with('error', 'Hanya PO berstatus Partial yang dapat ditutup paksa.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $purchaseOrder->update(['status' => 'Closed']);
+
+            DB::commit();
+
+            return redirect()->route('purchase-orders.show', $purchaseOrder->id)->with('success', 'Purchase Order berhasil ditutup paksa. Sisa barang batal tidak akan ditambahkan ke stok.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menutup paksa PO: ' . $e->getMessage());
+        }
     }
 
     public function print(PurchaseOrder $purchaseOrder)

@@ -56,6 +56,7 @@ Route::middleware(['auth', 'verified', 'nocache'])->group(function () {
         Route::resource('purchase-orders', PurchaseOrderController::class);
         Route::get('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receiveForm'])->name('purchase-orders.receive.form');
         Route::post('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receive'])->name('purchase-orders.receive');
+        Route::post('purchase-orders/{purchase_order}/force-close', [PurchaseOrderController::class, 'forceClose'])->name('purchase-orders.force-close');
         Route::get('purchase-orders/{purchase_order}/print', [PurchaseOrderController::class, 'print'])->name('purchase-orders.print');
     });
 

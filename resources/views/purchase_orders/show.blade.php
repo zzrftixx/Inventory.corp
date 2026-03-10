@@ -18,9 +18,11 @@
                 @if($purchaseOrder->status == 'Ordered')
                     <span class="bg-amber-100 text-amber-800 py-1 px-3 rounded text-xs font-semibold animate-pulse">Menunggu
                         Barang Datang</span>
-                @elseif($purchaseOrder->status == 'Received')
-                    <span class="bg-emerald-100 text-emerald-800 py-1 px-3 rounded text-xs font-semibold"><i
-                            class="ph-fill ph-check-circle mr-1"></i> Selesai Diterima</span>
+                @elseif(in_array($purchaseOrder->status, ['Received', 'Closed']))
+                    <span
+                        class="{{ $purchaseOrder->status == 'Closed' ? 'bg-slate-100 text-slate-800' : 'bg-emerald-100 text-emerald-800' }} py-1 px-3 rounded text-xs font-semibold"><i
+                            class="ph-fill ph-check-circle mr-1"></i> Selesai Diterima
+                        {{ $purchaseOrder->status == 'Closed' ? '(Ditutup Paksa)' : '' }}</span>
                 @endif
             </div>
 
@@ -42,17 +44,37 @@
             </div>
 
             @if(in_array($purchaseOrder->status, ['Ordered', 'Partial']))
-                <div class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg flex items-center justify-between">
-                    <div>
+                <div
+                    class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg flex flex-col md:flex-row md:items-center justify-between">
+                    <div class="mb-3 md:mb-0 md:mr-4">
                         <h4 class="text-sm font-bold text-sky-800">Proses Penerimaan Fisik</h4>
                         <p class="text-xs text-sky-700 mt-1">Klik tombol di samping untuk menginput jumlah barang yang datang.
                             Stok sistem akan bertambah berdasarkan form input.</p>
                     </div>
                     <a href="{{ route('purchase-orders.receive.form', $purchaseOrder->id) }}"
-                        class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center nowrap whitespace-nowrap">
+                        class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center nowrap whitespace-nowrap w-full md:w-auto justify-center">
                         <i class="ph-fill ph-check-square-offset text-lg mr-2"></i> Proses Penerimaan
                     </a>
                 </div>
+
+                @if($purchaseOrder->status == 'Partial')
+                    <div
+                        class="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-lg flex flex-col md:flex-row md:items-center justify-between">
+                        <div class="mb-3 md:mb-0 md:mr-4">
+                            <h4 class="text-sm font-bold text-rose-800">Tutup Paksa PO (Force Close)</h4>
+                            <p class="text-xs text-rose-700 mt-1">Jika sisa pesanan dipastikan <strong>batal/tidak akan
+                                    dikirim</strong> oleh pabrik, tutup paksa Purchase Order ini untuk memberhentikan antrean.</p>
+                        </div>
+                        <form action="{{ route('purchase-orders.force-close', $purchaseOrder->id) }}" method="POST"
+                            onsubmit="return confirm('Peringatan: PO ini akan ditutup secara permanen dengan status Selesai. Lanjutkan?');">
+                            @csrf
+                            <button type="submit"
+                                class="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center nowrap whitespace-nowrap w-full md:w-auto justify-center">
+                                <i class="ph-fill ph-lock-key text-lg mr-2"></i> Tutup Paksa PO
+                            </button>
+                        </form>
+                    </div>
+                @endif
             @endif
         </div>
 
