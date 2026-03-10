@@ -233,6 +233,20 @@
                 </div>
             @endif
 
+            @if ($errors->any())
+                <div class="mb-6 bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-md shadow-sm flex items-start">
+                    <i class="ph-fill ph-warning-circle text-rose-500 text-xl mr-3 mt-0.5"></i>
+                    <div>
+                        <h3 class="text-sm font-medium text-rose-800">Terdapat Kesalahan Input</h3>
+                        <ul class="list-disc list-inside text-sm text-rose-700 mt-1">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+            @endif
+
             @yield('content')
 
         </div>
