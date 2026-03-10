@@ -37,7 +37,7 @@
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Tanggal Terima FIsik <span
                             class="text-rose-500">*</span></label>
-                    <input type="date" name="tanggal_terima" value="{{ old('tanggal_terima', date('Y-m-d')) }}" required
+                    <input type="date" name="tanggal_terima" value="{{ old('tanggal_terima', date('Y-m-d')) }}"
                         class="w-full text-sm border-slate-200 rounded-md shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
                 </div>
                 <div class="md:col-span-2">
@@ -80,7 +80,8 @@
                                 <td class="py-4 px-6 text-center text-sm font-medium text-emerald-600">{{ $already_received }}
                                 </td>
                                 <td class="py-4 px-6 text-center text-sm font-bold text-rose-500">
-                                    {{ $remaining > 0 ? $remaining : 0 }}</td>
+                                    {{ $remaining > 0 ? $remaining : 0 }}
+                                </td>
                                 <td class="py-4 px-6 text-center">
                                     @if($remaining > 0)
                                         <input type="hidden" name="items[{{ $index }}][detail_id]" value="{{ $detail->id }}">
