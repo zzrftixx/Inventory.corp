@@ -228,7 +228,8 @@ class PurchaseOrderController extends Controller
 
             // Filter out items where qty == 0 to avoid blank receipts
             $items_to_receive = array_filter($request->items, function ($i) {
-                return isset($i['qty']) && $i['qty'] > 0; });
+                return isset($i['qty']) && $i['qty'] > 0;
+            });
 
             if (empty($items_to_receive)) {
                 return back()->with('error', 'Silakan input setidaknya satu barang dengan qty > 0.');
@@ -306,6 +307,8 @@ class PurchaseOrderController extends Controller
             DB::rollBack();
             return back()->withInput()->with('error', 'Gagal memproses penerimaan barang: ' . $e->getMessage());
         }
+    }
+
     public function forceClose(Request $request, PurchaseOrder $purchaseOrder)
     {
         if ($purchaseOrder->status !== 'Partial') {
