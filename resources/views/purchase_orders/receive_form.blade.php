@@ -83,11 +83,12 @@
                                     {{ $remaining > 0 ? $remaining : 0 }}
                                 </td>
                                 <td class="py-4 px-6 text-center">
-                                    @if($remaining > 0)
-                                        <input type="hidden" name="items[{{ $index }}][detail_id]" value="{{ $detail->id }}">
-                                        <input type="number" name="items[{{ $index }}][qty]" max="{{ $remaining }}" min="0"
-                                            value="0"
-                                            class="w-full text-center text-sm border-slate-300 rounded focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
+                                        <div class="relative w-24 mx-auto">
+                                            <input type="hidden" name="items[{{ $index }}][detail_id]" value="{{ $detail->id }}">
+                                            <input type="number" name="items[{{ $index }}][qty]" max="{{ $remaining }}" min="0"
+                                                class="w-full text-center text-sm font-bold text-slate-700 bg-white border-2 border-primary/30 rounded-lg shadow-inner focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 py-2 placeholder-slate-300"
+                                                placeholder="0">
+                                        </div>
                                     @else
                                         <span class="text-xs font-bold text-emerald-600"><i
                                                 class="ph-fill ph-check-circle mr-1"></i>LENGKAP</span>
