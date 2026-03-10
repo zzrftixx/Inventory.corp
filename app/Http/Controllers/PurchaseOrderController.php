@@ -16,8 +16,93 @@ class PurchaseOrderController extends Controller
 {
     public function index()
     {
-        $purchaseOrders = PurchaseOrder::with(['supplier', 'user'])->latest()->paginate(15);
+        $purchaseOrders = PurchaseOrder::with(['supplier', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
         return view('purchase_orders.index', compact('purchaseOrders'));
+    }
+
+    public function mergeIndex()
+    {
+        $draftPOs = PurchaseOrder::with(['supplier', 'details.item'])
+            ->where('status', 'Draft')
+            ->get()
+            ->groupBy('supplier_id')
+            ->filter(function ($pos) {
+                return $pos->count() > 1;
+            });
+
+        return view('purchase_orders.merge', compact('draftPOs'));
+    }
+
+    public function mergeProcess(Request $request, \App\Models\Supplier $supplier)
+    {
+        $draftPOs = PurchaseOrder::with('details')
+            ->where('status', 'Draft')
+            ->where('supplier_id', $supplier->id)
+            ->get();
+
+        if ($draftPOs->count() < 2) {
+            return back()->with('error', 'Tidak cukup PO Draft untuk digabungkan bagi supplier ini.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $mergedDetails = [];
+            $totalAmount = 0;
+
+            foreach ($draftPOs as $po) {
+                foreach ($po->details as $detail) {
+                    $itemId = $detail->item_id;
+                    if (!isset($mergedDetails[$itemId])) {
+                        $mergedDetails[$itemId] = [
+                            'qty_butuh' => 0,
+                            'harga_beli_satuan' => $detail->harga_beli_satuan,
+                            'metadata_kalkulasi' => $detail->metadata_kalkulasi
+                        ];
+                    }
+                    $mergedDetails[$itemId]['qty_butuh'] += $detail->qty_butuh;
+                    $totalAmount += ($detail->qty_butuh * $detail->harga_beli_satuan);
+                }
+            }
+
+            $datePrefix = \Carbon\Carbon::now()->format('Ymd');
+            $lastPO = PurchaseOrder::whereDate('tanggal_po', \Carbon\Carbon::today())->orderBy('id', 'desc')->first();
+            $sequence = $lastPO ? (int) substr($lastPO->no_po, -4) + 1 : 1;
+            $newNoPO = 'PO-' . $datePrefix . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+
+            $newPo = PurchaseOrder::create([
+                'no_po' => $newNoPO,
+                'tanggal_po' => \Carbon\Carbon::today(),
+                'supplier_id' => $supplier->id,
+                'user_id' => auth()->id() ?? (\App\Models\User::first()->id ?? 1),
+                'status' => 'Draft',
+                'total_amount_po' => $totalAmount
+            ]);
+
+            foreach ($mergedDetails as $itemId => $data) {
+                \App\Models\PurchaseOrderDetail::create([
+                    'purchase_order_id' => $newPo->id,
+                    'item_id' => $itemId,
+                    'qty_butuh' => $data['qty_butuh'],
+                    'harga_beli_satuan' => $data['harga_beli_satuan'],
+                    'metadata_kalkulasi' => $data['metadata_kalkulasi']
+                ]);
+            }
+
+            foreach ($draftPOs as $po) {
+                $po->details()->delete();
+                $po->delete();
+            }
+
+            DB::commit();
+            return redirect()->route('purchase-orders.index')->with('success', 'Berhasil menggabungkan ' . $draftPOs->count() . ' draft PO (' . $supplier->nama_supplier . ') menjadi 1 dokumen tunggal (' . $newNoPO . ').');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menggabungkan PO: ' . $e->getMessage());
+        }
     }
 
     public function create(Request $request)

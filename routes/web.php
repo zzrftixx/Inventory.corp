@@ -53,6 +53,8 @@ Route::middleware(['auth', 'verified', 'nocache'])->group(function () {
 
     // Purchase Orders (Gudang, Admin, Super Admin)
     Route::middleware(['role:Super Admin|Admin|Gudang'])->group(function () {
+        Route::get('purchase-orders/merge', [PurchaseOrderController::class, 'mergeIndex'])->name('purchase-orders.merge.index');
+        Route::post('purchase-orders/merge/{supplier}', [PurchaseOrderController::class, 'mergeProcess'])->name('purchase-orders.merge.process');
         Route::resource('purchase-orders', PurchaseOrderController::class);
         Route::get('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receiveForm'])->name('purchase-orders.receive.form');
         Route::post('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receive'])->name('purchase-orders.receive');
