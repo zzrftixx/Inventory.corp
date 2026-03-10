@@ -83,6 +83,7 @@
                                     {{ $remaining > 0 ? $remaining : 0 }}
                                 </td>
                                 <td class="py-4 px-6 text-center">
+                                    @if($remaining > 0)
                                         <div class="relative w-24 mx-auto">
                                             <input type="hidden" name="items[{{ $index }}][detail_id]" value="{{ $detail->id }}">
                                             <input type="number" name="items[{{ $index }}][qty]" max="{{ $remaining }}" min="0"
