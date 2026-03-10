@@ -218,18 +218,18 @@ class PurchaseOrderController extends Controller
 
         $request->validate([
             'tanggal_terima' => 'required|date',
-            'items' => 'required|array',
-            'items.*.detail_id' => 'required|exists:purchase_order_details,id',
-            'items.*.qty' => 'required|numeric|min:0'
+            'items' => 'nullable|array',
+            'items.*.detail_id' => 'required_with:items|exists:purchase_order_details,id',
+            'items.*.qty' => 'required_with:items|numeric|min:0'
         ]);
 
         try {
             DB::beginTransaction();
 
             // Filter out items where qty == 0 to avoid blank receipts
-            $items_to_receive = array_filter($request->items, function ($i) {
+            $items_to_receive = $request->items ? array_filter($request->items, function ($i) {
                 return isset($i['qty']) && $i['qty'] > 0;
-            });
+            }) : [];
 
             if (empty($items_to_receive)) {
                 return back()->with('error', 'Silakan input setidaknya satu barang dengan qty > 0.');
