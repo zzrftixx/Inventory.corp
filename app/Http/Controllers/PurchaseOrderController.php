@@ -186,10 +186,24 @@ class PurchaseOrderController extends Controller
 
             DB::commit();
 
+            if ($request->wantsJson()) {
+                session()->flash('success', 'Purchase Order berhasil dibuat.');
+                return response()->json([
+                    'success' => true,
+                    'redirect' => route('purchase-orders.show', $purchaseOrder->id)
+                ]);
+            }
+
             return redirect()->route('purchase-orders.show', $purchaseOrder->id)->with('success', 'Purchase Order berhasil dibuat.');
 
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal membuat PO: ' . $e->getMessage()
+                ], 500);
+            }
             return back()->withInput()->with('error', 'Gagal membuat PO: ' . $e->getMessage());
         }
     }
