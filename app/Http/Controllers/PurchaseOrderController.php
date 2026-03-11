@@ -122,6 +122,17 @@ class PurchaseOrderController extends Controller
 
     public function store(Request $request)
     {
+        // Sanitize Rupiah-formatted prices (strip thousand-separator dots/commas)
+        if ($request->has('items')) {
+            $items = $request->input('items');
+            foreach ($items as $key => $item) {
+                if (isset($item['harga_beli_satuan'])) {
+                    $items[$key]['harga_beli_satuan'] = str_replace(['.', ','], '', $item['harga_beli_satuan']);
+                }
+            }
+            $request->merge(['items' => $items]);
+        }
+
         $request->validate([
             'supplier_id' => 'required|exists:suppliers,id',
             'tanggal_po' => 'required|date',
@@ -186,10 +197,24 @@ class PurchaseOrderController extends Controller
 
             DB::commit();
 
+            if ($request->wantsJson()) {
+                session()->flash('success', 'Purchase Order berhasil dibuat.');
+                return response()->json([
+                    'success' => true,
+                    'redirect' => route('purchase-orders.show', $purchaseOrder->id)
+                ]);
+            }
+
             return redirect()->route('purchase-orders.show', $purchaseOrder->id)->with('success', 'Purchase Order berhasil dibuat.');
 
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal membuat PO: ' . $e->getMessage()
+                ], 500);
+            }
             return back()->withInput()->with('error', 'Gagal membuat PO: ' . $e->getMessage());
         }
     }
@@ -218,17 +243,18 @@ class PurchaseOrderController extends Controller
 
         $request->validate([
             'tanggal_terima' => 'required|date',
-            'items' => 'required|array',
-            'items.*.detail_id' => 'required|exists:purchase_order_details,id',
-            'items.*.qty' => 'required|numeric|min:0'
+            'items' => 'nullable|array',
+            'items.*.detail_id' => 'required_with:items|exists:purchase_order_details,id',
+            'items.*.qty' => 'required_with:items|numeric|min:0'
         ]);
 
         try {
             DB::beginTransaction();
 
             // Filter out items where qty == 0 to avoid blank receipts
-            $items_to_receive = array_filter($request->items, function ($i) {
-                return isset($i['qty']) && $i['qty'] > 0; });
+            $items_to_receive = $request->items ? array_filter($request->items, function ($i) {
+                return isset($i['qty']) && $i['qty'] > 0;
+            }) : [];
 
             if (empty($items_to_receive)) {
                 return back()->with('error', 'Silakan input setidaknya satu barang dengan qty > 0.');
@@ -306,6 +332,8 @@ class PurchaseOrderController extends Controller
             DB::rollBack();
             return back()->withInput()->with('error', 'Gagal memproses penerimaan barang: ' . $e->getMessage());
         }
+    }
+
     public function forceClose(Request $request, PurchaseOrder $purchaseOrder)
     {
         if ($purchaseOrder->status !== 'Partial') {
