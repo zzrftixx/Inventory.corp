@@ -25,12 +25,7 @@ class ReportController extends Controller
         }
 
         if ($request->has('export') && $request->export == 'excel') {
-            // Provide a graceful fallback to native CSV if maatwebsite fails to load
-            if (class_exists(\Maatwebsite\Excel\Facades\Excel::class) && class_exists(\App\Exports\ProfitLossExport::class)) {
-                return Excel::download(new ProfitLossExport($query->get()), 'Laporan_Laba_Rugi_' . date('Ymd_His') . '.xlsx');
-            } else {
-                return $this->exportCsv($query->get());
-            }
+            return $this->exportExcel($query->get());
         }
 
         $salesOrders = $query->paginate(20)->withQueryString();
@@ -54,54 +49,30 @@ class ReportController extends Controller
         return view('reports.profit_loss', compact('salesOrders', 'summary'));
     }
 
-    private function exportCsv($orders)
+    private function exportExcel($orders)
     {
-        $fileName = 'Laporan_Laba_Rugi_' . date('Y_m_d_H_i_s') . '.csv';
+        $fileName = 'Laporan_Laba_Rugi_' . date('Ymd_His') . '.xlsx';
 
-        $headers = array(
-            "Content-type" => "text/csv",
-            "Content-Disposition" => "attachment; filename=$fileName",
-            "Pragma" => "no-cache",
-            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
-            "Expires" => "0"
-        );
+        $writer = \Spatie\SimpleExcel\SimpleExcelWriter::streamDownload($fileName);
 
-        $columns = [
-            'No. Faktur',
-            'Tanggal Transaksi',
-            'Customer',
-            'Nama Barang',
-            'Qty',
-            'Total Modal (HPP)',
-            'Total Pendapatan (Netto)',
-            'Laba Kotor',
-            'Diinput Oleh'
-        ];
+        foreach ($orders as $order) {
+            foreach ($order->details as $detail) {
+                $laba = $detail->subtotal_netto - ($detail->qty * $detail->harga_modal_saat_transaksi);
 
-        $callback = function () use ($orders, $columns) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, $columns, ';');
-
-            foreach ($orders as $order) {
-                foreach ($order->details as $detail) {
-                    $laba = $detail->subtotal_netto - ($detail->qty * $detail->harga_modal_saat_transaksi);
-                    fputcsv($file, [
-                        $order->no_faktur,
-                        $order->tanggal_transaksi,
-                        $order->customer->nama ?? 'Umum',
-                        $detail->item->nama_barang ?? 'Unknown',
-                        $detail->qty,
-                        $detail->qty * $detail->harga_modal_saat_transaksi,
-                        $detail->subtotal_netto,
-                        $laba,
-                        $order->user->name ?? 'System'
-                    ], ';');
-                }
+                $writer->addRow([
+                    'No. Faktur' => $order->no_faktur,
+                    'Tanggal Transaksi' => \Carbon\Carbon::parse($order->tanggal_transaksi)->format('Y-m-d'),
+                    'Customer' => $order->customer->nama ?? 'Umum',
+                    'Nama Barang' => $detail->item->nama_barang ?? 'Unknown',
+                    'Qty' => (int) $detail->qty,
+                    'Total Modal (HPP)' => (float) ($detail->qty * $detail->harga_modal_saat_transaksi),
+                    'Total Pendapatan (Netto)' => (float) $detail->subtotal_netto,
+                    'Laba Kotor' => (float) $laba,
+                    'Diinput Oleh' => $order->user->name ?? 'System'
+                ]);
             }
+        }
 
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        return $writer->toBrowser();
     }
 }

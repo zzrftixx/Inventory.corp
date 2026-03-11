@@ -122,6 +122,17 @@ class PurchaseOrderController extends Controller
 
     public function store(Request $request)
     {
+        // Sanitize Rupiah-formatted prices (strip thousand-separator dots/commas)
+        if ($request->has('items')) {
+            $items = $request->input('items');
+            foreach ($items as $key => $item) {
+                if (isset($item['harga_beli_satuan'])) {
+                    $items[$key]['harga_beli_satuan'] = str_replace(['.', ','], '', $item['harga_beli_satuan']);
+                }
+            }
+            $request->merge(['items' => $items]);
+        }
+
         $request->validate([
             'supplier_id' => 'required|exists:suppliers,id',
             'tanggal_po' => 'required|date',
