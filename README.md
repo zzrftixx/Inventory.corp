@@ -17,8 +17,8 @@ Barang-barang sudah dikelaskan berdasarkan *Category*:
 *   Klien Pribadi: *Bapak Budi Santoso - PIK*
 *   Pelanggan Umum / Eceran
 
-### 4. User System (Role-Based Access Control)
+<!-- ### 4. User System (Role-Based Access Control)
 *   **Super Admin**: `superadmin@inventory.com` (pass: `password`)
 *   **Admin**: `admin@inventory.com` (pass: `password`)
 *   **Kasir**: `kasir@inventory.com` (pass: `password`)
-*   **Gudang**: `gudang@inventory.com` (pass: `password`)
+*   **Gudang**: `gudang@inventory.com` (pass: `password`) -->
